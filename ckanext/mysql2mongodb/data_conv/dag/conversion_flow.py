@@ -3,6 +3,7 @@ from datetime import datetime
 import os
 import requests
 import jsonpickle
+from dotenv import load_dotenv
 
 from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
@@ -19,6 +20,7 @@ logger = logging.getLogger("airflow.task")
 
 
 def taskPrepare(**kwargs):
+    load_dotenv()
     try:
         # Get context information
         resource_id = kwargs['dag_run'].conf.get('resource_id')
@@ -27,13 +29,13 @@ def taskPrepare(**kwargs):
 
         # check sql file type
         if sql_file_name.split(".")[1] != "sql":
-            logger.error('Invalided MySQL backup file extension!')
+            logger.error('Invalid MySQL backup file extension!')
             raise ValueError('Invalided MySQL backup file extension!')
 
         # change dir
         os.system("whoami")
-        # LOCATION = "/srv/app/src/ckanext-mysql2mongodb/ckanext/mysql2mongodb/data_conv"
-        LOCATION = "/usr/lib/ckan/default/src/ckanext-mysql2mongodb/ckanext/mysql2mongodb/data_conv"
+        LOCATION = os.getenv('WORKSPACE_LOCATION')
+        # LOCATION = "/usr/lib/ckan/default/src/ckanext-mysql2mongodb/ckanext/mysql2mongodb/data_conv"
         os.chdir(LOCATION)
 
         # Read configurations
@@ -76,13 +78,14 @@ def taskPrepare(**kwargs):
 
 
 def taskSchemaConv(**kwargs):
+    load_dotenv()
     try:
         _, _, _, db_conf, schema_name, mysql_host, mysql_username, mysql_password, mysql_port, mysql_dbname = pull_from_xcom(
             kwargs)
 
         os.system("whoami")
-        # LOCATION = "/srv/app/src/ckanext-mysql2mongodb/ckanext/mysql2mongodb/data_conv"
-        LOCATION = "/usr/lib/ckan/default/src/ckanext-mysql2mongodb/ckanext/mysql2mongodb/data_conv"
+        LOCATION = os.getenv('WORKSPACE_LOCATION')
+        # LOCATION = "/usr/lib/ckan/default/src/ckanext-mysql2mongodb/ckanext/mysql2mongodb/data_conv"
         os.chdir(LOCATION)
 
         schema_conv_init_option = ConvInitOption(
@@ -116,6 +119,7 @@ def taskSchemaConv(**kwargs):
 
 
 def taskDataConv(**kwargs):
+    load_dotenv()
     try:
         _, _, _, db_conf, schema_name, mysql_host, mysql_username, mysql_password, mysql_port, mysql_dbname = pull_from_xcom(
             kwargs)
@@ -131,8 +135,8 @@ def taskDataConv(**kwargs):
         mongodb_dbname = schema_name
 
         os.system("whoami")
-        # LOCATION = "/srv/app/src/ckanext-mysql2mongodb/ckanext/mysql2mongodb/data_conv"
-        LOCATION = "/usr/lib/ckan/default/src/ckanext-mysql2mongodb/ckanext/mysql2mongodb/data_conv"
+        LOCATION = os.getenv('WORKSPACE_LOCATION')
+        # LOCATION = "/usr/lib/ckan/default/src/ckanext-mysql2mongodb/ckanext/mysql2mongodb/data_conv"
         os.chdir(LOCATION)
 
         schema_conv_init_option = ConvInitOption(
@@ -145,7 +149,7 @@ def taskDataConv(**kwargs):
 
         os.system(f"mkdir -p mongodump_files")
         os.system(
-            f"mongodump --username {mongodb_username} --password {mongodb_password} --host {mongodb_host} --port {mongodb_port} --authenticationDatabase admin --db {mongodb_dbname} -o mongodump_files/")
+            f"mongodump --username {mongodb_username} --password {mongodb_password} --host {mongodb_host} --port {mongodb_port} --authenticationDatabase admin --db {mongodb_dbname} --forceTableScan -o mongodump_files/")
         os.chdir("./mongodump_files")
         os.system(f"zip -r {schema_name}.zip {schema_name}/*")
 
@@ -159,6 +163,7 @@ def taskDataConv(**kwargs):
 
 
 def taskUploadResult(**kwargs):
+    load_dotenv()
     try:
         package_id = kwargs['dag_run'].conf.get('package_id')
         resource_id, sql_file_name, sql_file_url, db_conf, schema_name, mysql_host, mysql_username, mysql_password, mysql_port, mysql_dbname = pull_from_xcom(
@@ -171,8 +176,8 @@ def taskUploadResult(**kwargs):
             task_ids='taskSchemaConv', key='schema_conv_init_option'))
 
         os.system("whoami")
-        # LOCATION = "/srv/app/src/ckanext-mysql2mongodb/ckanext/mysql2mongodb/data_conv"
-        LOCATION = "/usr/lib/ckan/default/src/ckanext-mysql2mongodb/ckanext/mysql2mongodb/data_conv"
+        LOCATION = os.getenv('WORKSPACE_LOCATION')
+        # LOCATION = "/usr/lib/ckan/default/src/ckanext-mysql2mongodb/ckanext/mysql2mongodb/data_conv"
         os.chdir(LOCATION)
 
         mongodb_host = db_conf["mongodb_host"]

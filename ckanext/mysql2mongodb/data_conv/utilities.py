@@ -73,44 +73,44 @@ def store_json_to_mongodb(mongodb_connection, collection_name, json_data):
 		print(e)
 		raise e
 
-def drop_mongodb_database(host, port, dbname):
+def drop_mongodb_database(db_config):
 	"""
 	Drop MongoDB database.
 	Be useful, just use this function at the begining of conversion.
 	"""
-	connection_string = f"mongodb://{host}:{port}/"
+	connection_string = f"mongodb://{db_config.username}:{db_config.password}@{db_config.host}:{db_config.port}/"
 	try:
 		# Making connection 
 		mongo_client = MongoClient(connection_string)  
-		mongo_client.drop_database(dbname)
+		mongo_client.drop_database(db_config.dbname)
 		return True
 	except Exception as e:
-		print(f"Error while dropping MongoDB database {dbname}! Re-check connection or name of database.")
+		print(f"Error while dropping MongoDB database {db_config.dbname}! Re-check connection or name of database.")
 		print(e)
 		raise e
 
-def open_connection_mongodb(host, port, dbname):
+def open_connection_mongodb(db_config):
 	"""
 	Set up a connection to MongoDB database.
 	Return a MongoClient object if success.
 	"""
-	connection_string = f"mongodb://{host}:{port}/"
+	connection_string = f"mongodb://{db_config.username}:{db_config.password}@{db_config.host}:{db_config.port}/"
 	try:
 		# Making connection 
 		mongo_client = MongoClient(connection_string)  
 		# Select database  
-		db_connection = mongo_client[dbname] 		
+		db_connection = mongo_client[db_config.dbname] 		
 		return db_connection
 	except Exception as e:
-		print(f"Error while connecting to MongoDB database {dbname}! Re-check connection or name of database.")
+		print(f"Error while connecting to MongoDB database {db_config.dbname}! Re-check connection or name of database.")
 		print(e)
 		raise e
 
-def load_mongodb_collection(host, port, dbname, collection_name):
+def load_mongodb_collection(db_config, collection_name):
 	"""
 	Load all documents from MongoDB collection.
 	"""
-	mongodb_connection = open_connection_mongodb(host, port, dbname)
+	mongodb_connection = open_connection_mongodb(db_config)
 	collection = mongodb_connection[collection_name]
 	docs = collection.find()
 	res = [doc for doc in docs]
@@ -153,4 +153,4 @@ if __name__ == '__main__':
 	mongodb_password = ''
 	mongodb_port = '27017'
 	mongodb_dbname = 'sakila'
-	load_mongodb_collection(mongodb_host, mongodb_port, mongodb_dbname, "original_schema")
+	# load_mongodb_collection(mongodb_host, mongodb_port, mongodb_dbname, "original_schema")

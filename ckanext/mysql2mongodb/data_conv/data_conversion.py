@@ -626,12 +626,7 @@ class DataConversion (AbstractDataConversion):
 		Migrate one collection from MongoDB back to MySQL
 		"""
 		try:
-			datas = load_mongodb_collection(
-				self.schema_conv_output_option.host,
-				self.schema_conv_output_option.port,
-				self.schema_conv_output_option.dbname,
-				collection_name
-			)
+			datas = load_mongodb_collection(self.schema_conv_output_option,collection_name)
 			db_schema = self.schema.get()
 			col_dict = self.schema.get_columns_dict()
 			table_coluuid_list = list(filter(
@@ -780,10 +775,7 @@ class DataConversion (AbstractDataConversion):
 			)
 		val_cur = val_conn.cursor()
 
-		mongodb_conn = open_connection_mongodb(
-			self.schema_conv_output_option.host,
-			self.schema_conv_output_option.port,
-			self.schema_conv_output_option.dbname)
+		mongodb_conn = open_connection_mongodb(self.schema_conv_output_option)
 
 		for table in self.schema.get_tables_name_list():
 			mongo_count = mongodb_conn[table].count()
@@ -852,10 +844,7 @@ class DataConversion (AbstractDataConversion):
 		try:
 			fetched_data_list = self.get_fetched_data_list(table_name)
 			convert_data_list = self.store_fetched_data_to_mongodb(table_name, fetched_data_list)
-			mongodb_connection = open_connection_mongodb(
-				self.schema_conv_output_option.host,
-				self.schema_conv_output_option.port,
-				self.schema_conv_output_option.dbname)
+			mongodb_connection = open_connection_mongodb(self.schema_conv_output_option)
 			store_json_to_mongodb(mongodb_connection, table_name, convert_data_list)
 		except Exception as e:
 			raise e
@@ -1029,11 +1018,7 @@ class DataConversion (AbstractDataConversion):
 		"""
 		Convert one relation of MySQL table to database reference of MongoDB
 		"""
-		db_connection = open_connection_mongodb(
-			self.schema_conv_output_option.host, 
-			self.schema_conv_output_option.port, 
-			self.schema_conv_output_option.dbname
-			)
+		db_connection = open_connection_mongodb(self.schema_conv_output_option)
 		original_collection_connection = db_connection[original_collection_name]
 		original_documents = original_collection_connection.find()
 		new_referenced_key_dict = {}
