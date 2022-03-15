@@ -19,9 +19,11 @@ def _task_prepare(**kwargs):
         'sql_file_name': kwargs['dag_run'].conf.get('sql_file_name'),
     }
     mysql2mongo_prepare(**file_info)
+    kwargs['ti'].xcom_push(key='input_file_info', value=file_info)
 
 
 def _task_converse_schema(**kwargs):
+    input_file_info = kwargs['ti'].xcom_pull(task_ids='prepare_task', key='input_file_info')
     mysql2mongo_converse_schema()
 
 
@@ -54,21 +56,6 @@ def pull_from_xcom(kwargs):
     mysql_dbname = kwargs['ti'].xcom_pull(
         task_ids='taskPrepare', key='mysql_dbname')
     return resource_id, sql_file_name, sql_file_url, db_conf, schema_name, mysql_host, mysql_username, mysql_password, mysql_port, mysql_dbname
-
-
-def push_to_xcom(kwargs, resource_id, sql_file_name, sql_file_url, db_conf, package_conf, CKAN_API_KEY, schema_name, mysql_host, mysql_username, mysql_password, mysql_port, mysql_dbname):
-    kwargs['ti'].xcom_push(key='resource_id', value=resource_id)
-    kwargs['ti'].xcom_push(key='sql_file_name', value=sql_file_name)
-    kwargs['ti'].xcom_push(key='sql_file_url', value=sql_file_url)
-    kwargs['ti'].xcom_push(key='db_conf', value=db_conf)
-    kwargs['ti'].xcom_push(key='package_conf', value=package_conf)
-    kwargs['ti'].xcom_push(key='CKAN_API_KEY', value=CKAN_API_KEY)
-    kwargs['ti'].xcom_push(key='schema_name', value=schema_name)
-    kwargs['ti'].xcom_push(key='mysql_host', value=mysql_host)
-    kwargs['ti'].xcom_push(key='mysql_username', value=mysql_username)
-    kwargs['ti'].xcom_push(key='mysql_password', value=mysql_password)
-    kwargs['ti'].xcom_push(key='mysql_port', value=mysql_port)
-    kwargs['ti'].xcom_push(key='mysql_dbname', value=mysql_dbname)
 
 
 dag = DAG('data_conversion_flow',

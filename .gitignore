@@ -46,6 +46,9 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# python virtual env
+.python-version
+
 # Flask stuff:
 instance/
 .webassets-cache
@@ -60,8 +63,3 @@ tmp/
 
 # dataconv
 .dataconv_cache/
-mongodump_files/
-intermediate_data/
-
-# schemacrawler
-_schemacrawler/

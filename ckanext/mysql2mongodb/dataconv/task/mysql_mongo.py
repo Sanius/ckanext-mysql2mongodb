@@ -1,13 +1,16 @@
 import logging
-import pprint
+
+from ckanext.mysql2mongodb.dataconv.database import database_factory
+
+from ckanext.mysql2mongodb.dataconv.database.mysql_handler import MySQLHandler
 
 from ckanext.mysql2mongodb.dataconv.exceptions import InvalidFileExtensionError
 
 from ckanext.mysql2mongodb.dataconv.util import command_lines
 
-from ckanext.mysql2mongodb.dataconv.constant.error_codes import TASK_PREPARE_DATA_ERROR
+from ckanext.mysql2mongodb.dataconv.constant.error_codes import TASK_PREPARE_DATA_ERROR, INPUT_FILE_EXTENSION_ERROR
 
-from ckanext.mysql2mongodb.dataconv.constant.consts import SQL_FILE_EXTENSION
+from ckanext.mysql2mongodb.dataconv.constant.consts import SQL_FILE_EXTENSION, MYSQL
 
 logger = logging.getLogger(__name__)
 
@@ -16,55 +19,58 @@ def prepare(sql_file_url: str, resource_id: str, sql_file_name: str):
     try:
         # check sql file type
         if sql_file_name.split('.')[-1] != SQL_FILE_EXTENSION:
-            logger.error(f'error code: {TASK_PREPARE_DATA_ERROR}')
+            logger.error(f'error code: {INPUT_FILE_EXTENSION_ERROR}')
             raise InvalidFileExtensionError('Invalid MySQL backup file extension!')
 
-        # change dir
-        # os.system("whoami")
-        # LOCATION = os.getenv('WORKSPACE_LOCATION')
-        # LOCATION = "/usr/lib/ckan/default/src/ckanext-mysql2mongodb/ckanext/mysql2mongodb/data_conv"
-        # os.chdir(LOCATION)
-
-        # Read configurations
-        # db_conf = read_database_config()
-        # package_conf = read_package_config()
-        # CKAN_API_KEY = package_conf["X-CKAN-API-Key"]
-
         # get sql bak
-        # os.system(f"mkdir -p ./downloads/{resource_id}
-        # os.system(
-        #     f"curl -H \"X-CKAN-API-Key: {CKAN_API_KEY}\" -o ./downloads/{resource_id}/{sql_file_name} {sql_file_url}")
         command_lines.download_from_ckan_mysql_file(sql_file_url, resource_id, sql_file_name)
-
-        # get mysql info
-        # schema_name = sql_file_name.split(".")[0]
-        # mysql_host = db_conf["mysql_host"]
-        # mysql_username = db_conf["mysql_username"]
-        # mysql_password = db_conf["mysql_password"]
-        # mysql_port = db_conf["mysql_port"]
-        # mysql_dbname = schema_name
-
         # process mysql
-        # mysql_conn = open_connection_mysql(
-        #     mysql_host, mysql_username, mysql_password)
-        # mysql_cur = mysql_conn.cursor()
-        # mysql_cur.execute(f"CREATE DATABASE IF NOT EXISTS {mysql_dbname};")
-        # mysql_cur.close()
-        # mysql_conn.close()
-
-        os.system(
-            f"mysql -h {mysql_host} -u {mysql_username} --password={mysql_password} {schema_name} < {LOCATION}/downloads/{resource_id}/{sql_file_name}")
-
-        # push_to_xcom(kwargs, resource_id, sql_file_name, sql_file_url, db_conf, package_conf, CKAN_API_KEY,
-        #              schema_name, mysql_host, mysql_username, mysql_password, mysql_port, mysql_dbname)
-
+        mysql_handler = database_factory.produce_database(MYSQL)
+        mysql_handler.restore_from_ckan(resource_id, sql_file_name)
     except Exception as ex:
-        logger.error(pprint.pprint(ex))
+        logger.error(f'error code: {TASK_PREPARE_DATA_ERROR}')
         raise ex
 
 
 def converse_schema():
-    logger.info('=========================== Converse Schema ===========================')
+    # try:
+    #     _, _, _, db_conf, schema_name, mysql_host, mysql_username, mysql_password, mysql_port, mysql_dbname = pull_from_xcom(
+    #         kwargs)
+    #
+    #     os.system("whoami")
+    #     # LOCATION = "/srv/app/src/ckanext-mysql2mongodb/ckanext/mysql2mongodb/data_conv"
+    #     LOCATION = "/usr/lib/ckan/default/src/ckanext-mysql2mongodb/ckanext/mysql2mongodb/data_conv"
+    #     os.chdir(LOCATION)
+    #
+    #     schema_conv_init_option = ConvInitOption(
+    #         host=mysql_host, username=mysql_username, password=mysql_password, port=mysql_port, dbname=mysql_dbname)
+    #
+    #     mongodb_host = db_conf["mongodb_host"]
+    #     mongodb_username = db_conf["mongodb_username"]
+    #     mongodb_password = db_conf["mongodb_password"]
+    #     mongodb_port = db_conf["mongodb_port"]
+    #     mongodb_dbname = schema_name
+    #
+    #     schema_conv_output_option = ConvOutputOption(
+    #         host=mongodb_host, username=mongodb_username, password=mongodb_password, port=mongodb_port, dbname=mongodb_dbname)
+    #
+    #     schema_conversion = SchemaConversion()
+    #     schema_conversion.set_config(
+    #         schema_conv_init_option, schema_conv_output_option)
+    #     schema_conversion.run()
+    #
+    #     kwargs['ti'].xcom_push(key='schema_conv_init_option',
+    #                            value=jsonpickle.encode(schema_conv_init_option))
+    #     kwargs['ti'].xcom_push(key='schema_conv_output_option',
+    #                            value=jsonpickle.encode(schema_conv_output_option))
+    #     kwargs['ti'].xcom_push(key='schema_conversion',
+    #                            value=jsonpickle.encode(schema_conversion))
+    #
+    # except Exception as exception:
+    #     logger.error("Error Occure in taskDataConv Task!")
+    #     logger.error(str(exception))
+    #     raise exception
+    pass
 
 
 def converse_data():
