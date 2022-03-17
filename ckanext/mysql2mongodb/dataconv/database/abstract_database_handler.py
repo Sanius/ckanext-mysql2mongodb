@@ -1,4 +1,5 @@
 from abc import abstractmethod, ABC
+from typing import Any
 
 
 class AbstractDatabaseHandler(ABC):
@@ -13,7 +14,4 @@ class AbstractDatabaseHandler(ABC):
     def set_db(self, db: str): raise NotImplementedError
 
     @abstractmethod
-    def restore_from_ckan(self, resource_id: str, file_name: str): raise NotImplementedError
-
-    @abstractmethod
-    def backup(self): raise NotImplementedError
+    def _get_open_connection(self) -> Any: raise NotImplementedError

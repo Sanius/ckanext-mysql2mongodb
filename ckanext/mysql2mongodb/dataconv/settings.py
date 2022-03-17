@@ -14,4 +14,5 @@ MONGO_PASSWORD = os.environ.get('MONGO_PASSWORD')
 MONGO_DB = os.environ.get('MONGO_DB')
 
 MYSQL_ENV_VAR_PATH = '' if not os.environ.get('MYSQL_HOME') else f'{os.environ.get("MYSQL_HOME")}/bin/'
-SCHEMA_CRAWLER_ENV_VAR_PATH = '' if not os.environ.get('MYSQL_HOME')  else f'{os.environ.get("SCHEMA_CRAWLER_HOME")}/bin/'
+SCHEMA_CRAWLER_ENV_VAR_PATH = '' if not os.environ.get('MYSQL_HOME') \
+    else f'{os.environ.get("SCHEMA_CRAWLER_HOME")}/bin/'

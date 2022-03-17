@@ -5,8 +5,8 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 
 from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import prepare as mysql2mongo_prepare
-from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import converse_schema as mysql2mongo_converse_schema
-from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import converse_data as mysql2mongo_converse_data
+from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import convert_schema as mysql2mongo_convert_schema
+from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import convert_data as mysql2mongo_convert_data
 from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import upload_converted_data as mysql2mongo_upload_data
 
 logger = logging.getLogger(__name__)
@@ -22,13 +22,14 @@ def _task_prepare(**kwargs):
     kwargs['ti'].xcom_push(key='input_file_info', value=file_info)
 
 
-def _task_converse_schema(**kwargs):
+def _task_convert_schema(**kwargs):
     input_file_info = kwargs['ti'].xcom_pull(task_ids='prepare_task', key='input_file_info')
-    mysql2mongo_converse_schema()
+    mysql2mongo_convert_schema(input_file_info['resource_id'], input_file_info['sql_file_name'])
 
 
-def _task_converse_data(**kwargs):
-    mysql2mongo_converse_data()
+def _task_convert_data(**kwargs):
+    input_file_info = kwargs['ti'].xcom_pull(task_ids='prepare_task', key='input_file_info')
+    mysql2mongo_convert_data(input_file_info['resource_id'], input_file_info['sql_file_name'])
 
 
 def _task_upload_result(**kwargs):
@@ -68,13 +69,13 @@ task1 = PythonOperator(task_id='prepare_task',
                        op_kwargs={},
                        provide_context=True,
                        dag=dag)
-task2 = PythonOperator(task_id='schema_converse_task',
-                       python_callable=_task_converse_schema,
+task2 = PythonOperator(task_id='schema_convert_task',
+                       python_callable=_task_convert_schema,
                        op_kwargs={},
                        provide_context=True,
                        dag=dag)
-task3 = PythonOperator(task_id='data_converse_task',
-                       python_callable=_task_converse_data,
+task3 = PythonOperator(task_id='data_convert_task',
+                       python_callable=_task_convert_data,
                        op_kwargs={},
                        provide_context=True,
                        dag=dag)

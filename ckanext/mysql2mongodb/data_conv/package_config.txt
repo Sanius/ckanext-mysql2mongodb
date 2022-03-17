@@ -1,2 +1,0 @@
-package_id = 'mysql2mongodb'
-X-CKAN-API-KEY = '15effdbf-b3f2-4c1b-882a-1ab417a5af1f'
