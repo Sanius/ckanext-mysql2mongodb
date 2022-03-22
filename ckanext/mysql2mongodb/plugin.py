@@ -1,44 +1,37 @@
-import ckan.plugins as plugins
-import ckan.plugins.toolkit as toolkit
-from ckanext.mysql2mongodb.data_conv.main import convert_data
-import pprint, os
+import logging
 
-class Mysql2MongodbPlugin(plugins.SingletonPlugin):
-    plugins.implements(plugins.IResourceController)
+import ckan.plugins as ckan_plugins
+import ckan.plugins.toolkit as ckan_toolkit
+from ckanext.mysql2mongodb.dataconv import convert_data
+
+logger = logging.getLogger(__name__)
+
+
+class Mysql2MongodbPlugin(ckan_plugins.SingletonPlugin):
+    ckan_plugins.implements(ckan_plugins.IResourceController)
 
     def after_create(self, context, resource):
-        # pprint.pprint(context)
-        # pprint.pprint(resource)
-        os.system("pwd")
-        os.system("whoami")
-        sql_file_name = resource["name"]
-        sql_file_url = resource["url"]
-        resource_id = resource["id"]
-        package_id = resource["package_id"]
-        # pprint.pprint(f"----------------------------------------------------------------------------------")
-        # pprint.pprint(f"{resource}")
-        # pprint.pprint(f"----------------------------------------------------------------------------------")
-        pprint.pprint(f"{resource_id}")
-        pprint.pprint(f"{sql_file_name}") 
-        pprint.pprint(f"{sql_file_url}")
-        toolkit.enqueue_job(convert_data, [resource_id, sql_file_name, sql_file_url, package_id])
+        ckan_toolkit.enqueue_job(convert_data, [
+            resource['id'],
+            resource['name'],
+            resource['url'],
+            resource['package_id']
+        ])
 
     def before_create(self, context, resource):
-    	pass
+        pass
 
     def before_update(self, context, current, resource):
-    	pass
+        pass
 
     def after_update(self, context, resource):
-    	pass
+        pass
 
     def before_delete(self, context, resource, resources):
-    	pass
+        pass
 
     def after_delete(self, context, resources):
-    	pass
+        pass
 
     def before_show(self, resource_dict):
-    	pass
-    
-
+        pass

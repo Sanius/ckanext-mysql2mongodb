@@ -1,4 +1,6 @@
 .vscode/
+.idea/
+.idea_modules/
 # Byte-compiled / optimized / DLL files
 *.pyc
 __pycache__/
@@ -7,11 +9,8 @@ __pypackages__/
 # Distribution / packaging
 .Python
 build/
-develop-eggs/
 dist/
 downloads/
-eggs/
-.eggs/
 lib/
 lib64/
 parts/
@@ -20,12 +19,11 @@ var/
 wheels/
 share/python-wheels/
 .installed.cfg
-*.egg
 MANIFEST
+*.egg
+develop-eggs/
+eggs/
 *.egg-info/
-
-mongodump_files/
-intermediate_data/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -48,6 +46,9 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# python virtual env
+.python-version
+
 # Flask stuff:
 instance/
 .webassets-cache
@@ -58,5 +59,7 @@ docs/_build/
 # PyBuilder
 .pybuilder/
 target/
+tmp/
 
-!.env
+# dataconv
+.dataconv_cache/

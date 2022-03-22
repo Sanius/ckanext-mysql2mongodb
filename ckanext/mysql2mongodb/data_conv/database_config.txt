@@ -1,9 +1,0 @@
-mysql_host = 'localhost'
-mysql_username = 'root'
-mysql_password = 'password'
-mysql_port = '3306'
-
-mongodb_host = 'localhost'
-mongodb_username = 'admin'
-mongodb_password = 'password'
-mongodb_port = '27017'
