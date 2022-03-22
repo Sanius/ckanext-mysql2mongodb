@@ -2,11 +2,9 @@ import logging
 import subprocess
 from typing import Any, List
 
-from ckanext.mysql2mongodb.dataconv.util.conversion_tools import map_mysql_mongo_datatype
+from ckanext.mysql2mongodb.dataconv.constant.consts import MYSQL, SCHEMA_CRAWLER, JSON_FILE_EXTENSION, MYSQL_MONGO_MAP
 
-from ckanext.mysql2mongodb.dataconv.constant.consts import MYSQL, SCHEMA_CRAWLER, JSON_FILE_EXTENSION
-
-from ckanext.mysql2mongodb.dataconv.util import command_lines
+from ckanext.mysql2mongodb.dataconv.file_system import file_system_handler
 
 from ckanext.mysql2mongodb.dataconv.exceptions import UnspecifiedDatabaseException, DatabaseConnectionError, \
     DatatypeMappingException, MySQLDatabaseNotFoundException
@@ -37,33 +35,19 @@ class MySQLHandler(AbstractDatabaseHandler):
         """
         e.g. file_name: sakila.sql
         """
-        # Get db name
         try:
             name = file_name.split('.')[0]
             self.set_db(name)
             self._create_db()
             # Get file path
-            file_path = f'{command_lines.get_ckan_download_cache_path(resource_id)}/{file_name}'
-            mysql_command = MYSQL_ENV_VAR_PATH + MYSQL
-            command_line_str = '''
-                {command} -h {mysql_host} \
-                -P {mysql_port} \
-                --user={mysql_user} \
-                --password={mysql_password} {mysql_database} < {file_path} \
-            '''.format(command=mysql_command,
-                       mysql_host=self._host,
-                       mysql_port=self._port,
-                       mysql_user=self._username,
-                       mysql_password=self._password,
-                       mysql_database=self._db,
-                       file_path=file_path)
-            subprocess.run([command_line_str], check=True, shell=True)
+            file_path = f'{file_system_handler.get_ckan_download_cache_path(resource_id)}/{file_name}'
+            self._restore(file_path)
             logger.info(f'Restore MySQL database successfully')
         except Exception as ex:
             logger.error(f'error code: {MYSQL_RESTORE_DATA_ERROR}')
             raise ex
 
-    def generate_schema(self, resource_id: str, file_name: str):
+    def generate_schema_file(self, resource_id: str, file_name: str):
         """
         Generate MySQL schema using SchemaCrawler, then save as JSON file at intermediate directory.
         """
@@ -73,54 +57,29 @@ class MySQLHandler(AbstractDatabaseHandler):
             raise MySQLDatabaseNotFoundException('Database not found')
         self.set_db(db_name)
         try:
-            # region Create and get file path
-            schema_crawler_cache_dir = command_lines.create_schema_crawler_cache_dir(resource_id)
+            schema_crawler_cache_dir = file_system_handler.create_schema_crawler_cache_dir(resource_id)
             file_path = f'{schema_crawler_cache_dir}/{db_name}.{JSON_FILE_EXTENSION}'
-            # endregion
-            # region Generate schema
-            schema_crawler_command = SCHEMA_CRAWLER_ENV_VAR_PATH + SCHEMA_CRAWLER
-            command_line_str = '''
-                {command} --server=mysql \
-                --host={mysql_host} \
-                --port={mysql_port} \
-                --database={mysql_database} \
-                --schemas={mysql_database} \
-                --user={mysql_user} \
-                --password={mysql_password} \
-                --info-level=maximum \
-                --command=serialize \
-                --output-file={schema_crawler_file_path} \
-            '''.format(
-                command=schema_crawler_command,
-                mysql_host=self._host,
-                mysql_port=self._port,
-                mysql_database=self._db,
-                mysql_user=self._username,
-                mysql_password=self._password,
-                schema_crawler_file_path=file_path
-            )
-            subprocess.run([command_line_str], check=True, shell=True)
-            # endregion
+            self._generate_schema_file(file_path)
             logger.info(f'Generate MySQL database {db_name} schema successfully!')
         except Exception as ex:
             logger.error(f'error code: {MYSQL_EXPORT_SCHEMA_ERROR}')
             raise ex
 
-    def fetch_data_for_mongo(self, db_name: str, table_name: str, column_type_dict: dict) -> List:
+    def fetch_data_for_mongo(self, db_name: str, table_name: str, column_type_map: dict) -> List:
         """
         column_type_dict = { <column_name>: <column_datatype> }
         """
+        self.set_db(db_name)
         if not self._does_db_exist(db_name):
             logger.error(f'error code: {MYSQL_DATABASE_NOT_FOUND_ERROR}')
             raise MySQLDatabaseNotFoundException('Database not found')
-        self.set_db(db_name)
         conn = self._get_db_connection()
         try:
             sql_cmd = 'SELECT'
-            for column_name in column_type_dict.keys():
+            for column_name in column_type_map.keys():
                 # col_fetch_seq.append(col_name)
-                mysql_datatype = column_type_dict.get(column_name)
-                mongo_datatype = map_mysql_mongo_datatype(mysql_datatype)
+                mysql_datatype = column_type_map.get(column_name)
+                mongo_datatype = MYSQL_MONGO_MAP.get(mysql_datatype, '')
                 # Generating SQL for selecting from MySQL Database
                 if mongo_datatype is None:
                     raise DatatypeMappingException(f'Data type {mysql_datatype} has not been handled!')
@@ -128,15 +87,13 @@ class MySQLHandler(AbstractDatabaseHandler):
                     sql_cmd = f'{sql_cmd} ST_AsText({column_name}),'
                 else:
                     sql_cmd = f'{sql_cmd} `{column_name}`,'
-            # join sql
             sql_cmd = f'{sql_cmd[:-1]} FROM `{table_name}`'
             cursor = conn.cursor()
-            # execute sql
             cursor.execute(sql_cmd)
-            # fetch data and convert
             result = cursor.fetchall()
             conn.commit()
             cursor.close()
+            logger.info(f'Fetch data from database: {db_name} table: {table_name} successfully!')
             return result
         except Exception as ex:
             logger.error(f'error code: {MYSQL_FETCH_DATA_TO_MONGO_ERROR}')
@@ -179,6 +136,46 @@ class MySQLHandler(AbstractDatabaseHandler):
     # endregion
 
     # region Component methods
+    def _restore(self, file_path: str):
+        mysql_command = f'{MYSQL_ENV_VAR_PATH}/{MYSQL}'
+        command_line_str = '''
+            {command} -h {mysql_host} \
+            -P {mysql_port} \
+            --user={mysql_user} \
+            --password={mysql_password} {mysql_database} < {file_path} \
+        '''.format(command=mysql_command,
+                   mysql_host=self._host,
+                   mysql_port=self._port,
+                   mysql_user=self._username,
+                   mysql_password=self._password,
+                   mysql_database=self._db,
+                   file_path=file_path)
+        subprocess.run([command_line_str], check=True, shell=True)
+
+    def _generate_schema_file(self, file_path: str):
+        schema_crawler_command = f'{SCHEMA_CRAWLER_ENV_VAR_PATH}/{SCHEMA_CRAWLER}'
+        command_line_str = '''
+            {command} --server=mysql \
+            --host={mysql_host} \
+            --port={mysql_port} \
+            --database={mysql_database} \
+            --schemas={mysql_database} \
+            --user={mysql_user} \
+            --password={mysql_password} \
+            --info-level=maximum \
+            --command=serialize \
+            --output-file={schema_crawler_file_path} \
+        '''.format(
+            command=schema_crawler_command,
+            mysql_host=self._host,
+            mysql_port=self._port,
+            mysql_database=self._db,
+            mysql_user=self._username,
+            mysql_password=self._password,
+            schema_crawler_file_path=file_path
+        )
+        subprocess.run([command_line_str], check=True, shell=True)
+
     # Override
     def set_db(self, db: str):
         self._db = db

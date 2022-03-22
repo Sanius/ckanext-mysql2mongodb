@@ -1,9 +1,7 @@
 import logging
-from pprint import pprint
 
 import ckan.plugins as ckan_plugins
-from ckan.plugins import toolkit as ckan_toolkit
-
+import ckan.plugins.toolkit as ckan_toolkit
 from ckanext.mysql2mongodb.dataconv import convert_data
 
 logger = logging.getLogger(__name__)

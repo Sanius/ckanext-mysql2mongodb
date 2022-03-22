@@ -1,11 +1,10 @@
 from setuptools import setup, find_packages
-from codecs import open
 from os import path
 
 here = path.abspath(path.dirname(__file__))
 
 setup(
-    name='ckanext-mysql2mongodb',
+    name='ckanext_mysql2mongodb',
     version='0.0.1',
     description='''A data conversion data from MySQL to MongoDB project from BKU''',
     url='https://github.com/sanius/ckanext_mysql2mongodb',

@@ -14,6 +14,10 @@ class UnavailableResourceError(Exception):
     pass
 
 
+class UploadResourceError(Exception):
+    pass
+
+
 class UnsupportedDatabaseException(Exception):
     pass
 

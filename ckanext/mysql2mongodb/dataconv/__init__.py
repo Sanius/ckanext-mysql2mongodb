@@ -25,7 +25,6 @@ def convert_data(resource_id, sql_file_name, sql_file_url, package_id):
         c.trigger_dag(dag_id='data_conversion_flow',
                       run_id='data_conversion_flow' + str(timestamp),
                       conf=json.dumps(conf))
-        return True
     except Exception as e:
         logger.error(f'error code: {CONVERT_DATA_ERROR}')
         logger.error(pprint.pformat(e))
