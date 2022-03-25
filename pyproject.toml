@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "ckanext_mysql2mongodb"
+version = "0.1.0"
+description = ""
+authors = ["San Dang <dangthaisan@hotmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+wheel = "^0.37.1"
+psycopg2 = "^2.9.3"
+psycopg2-binary = "^2.9.3"
+pymongo = "~=4.0.2"
+mysql-connector-python = "~=8.0.28"
+requests = "~=2.27.1"
+apache-airflow = "~=2.2.4"
+numpy = "~=1.22.3"
+pandas = "~=1.4.1"
+pyarrow = "~=7.0.0"
+jupyter = "~=1.0.0"
+jupyterlab = "~=3.3.2"
+
+[tool.poetry.dev-dependencies]
+PyYAML = "5.4.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

@@ -1,9 +1,12 @@
-setuptools==44.1.0
 wheel
-psycopg2
+  psycopg2
 psycopg2-binary
-numpy
 pymongo~=4.0.2
 mysql-connector-python~=8.0.28
 requests~=2.27.1
 apache-airflow~=2.2.4
+numpy~=1.22.3
+pandas~=1.4.1
+pyarrow~=7.0.0
+jupyter~=1.0.0
+jupyterlab~=3.3.2

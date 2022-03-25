@@ -1,0 +1,6 @@
+dotenv_if_exists
+PATH_add ${MYSQL_BIN}
+PATH_add ${SCHEMA_CRAWLER_BIN}
+PATH_add ${MONGO_TOOL_BIN}
+path_add PYTHONPATH ${SPARK_HOME}/python
+path_add PYTHONPATH $(ZIPS=($SPARK_HOME/python/lib/*.zip); IFS=:; echo ${ZIPS[*]})

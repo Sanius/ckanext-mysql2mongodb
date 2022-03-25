@@ -48,6 +48,7 @@ cover/
 
 # python virtual env
 .python-version
+.direnv/
 
 # Flask stuff:
 instance/
@@ -60,6 +61,9 @@ docs/_build/
 .pybuilder/
 target/
 tmp/
+
+# vim
+*.swp
 
 # dataconv
 .dataconv_cache/
