@@ -81,7 +81,7 @@ def dump_data(resource_id: str, sql_file_name: str):
 def upload_converted_data(resource_id: str, sql_file_name: str, package_id: str):
     try:
         file_system_handler.upload_to_ckan_mongo_dump_data(resource_id, sql_file_name, package_id)
-        logger.info('Task dump data success')
+        logger.info('Task upload data success')
     except Exception as ex:
         logger.error(f'error code: {TASK_UPLOAD_DATA_ERROR}')
         raise ex
