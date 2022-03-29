@@ -61,5 +61,8 @@ docs/_build/
 target/
 tmp/
 
+# vim
+*.swp
+
 # dataconv
 .dataconv_cache/
