@@ -1,5 +1,7 @@
 import logging
 
+from ckanext.mysql2mongodb.dataconv.util.data_conversion import convert_mysql_to_mongodb
+
 from ckanext.mysql2mongodb.dataconv.constant.consts import SQL_FILE_EXTENSION
 from ckanext.mysql2mongodb.dataconv.constant.error_codes import TASK_PREPARE_DATA_ERROR, INPUT_FILE_EXTENSION_ERROR, \
     TASK_CONVERT_SCHEMA_ERROR, TASK_CONVERT_DATA_ERROR, TASK_DUMP_DATA_ERROR, TASK_UPLOAD_DATA_ERROR
@@ -31,6 +33,8 @@ def convert_schema(resource_id: str, sql_file_name: str):
         # region Init database handlers
         mysql_handler = MySQLHandler()
         mongo_handler = MongoHandler()
+
+        mongo_handler.drop_old_db(sql_file_name.split('.')[0])
         # endregion
         # region Main tasks
         mysql_handler.restore_from_ckan(resource_id, sql_file_name)
@@ -58,9 +62,10 @@ def convert_data(sql_file_name: str):
         # region Main tasks
         column_type_map = mongo_handler.get_table_columnname_datatype(db_name)
         for table_name in mongo_handler.get_schema_table_name_list(db_name):
-            fetched_data = mysql_handler.fetch_data_for_mongo(db_name, table_name, column_type_map[table_name])
-            converted_data = mongo_handler.convert_fetched_mysql_data(fetched_data, column_type_map[table_name])
-            mongo_handler.store_data_to_collection(db_name, table_name, converted_data)
+            data_generator = mysql_handler.fetch_data_for_mongo(db_name, table_name, column_type_map[table_name])
+            for fetched_data in data_generator:
+                converted_data = convert_mysql_to_mongodb(fetched_data, column_type_map[table_name])
+                mongo_handler.store_data_to_collection(db_name, table_name, converted_data)
         logger.info('Task convert data success')
     except Exception as ex:
         logger.error(f'error code: {TASK_CONVERT_DATA_ERROR}')

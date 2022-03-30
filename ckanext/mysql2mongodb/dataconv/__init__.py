@@ -12,7 +12,7 @@ from ckanext.mysql2mongodb.dataconv.constant.error_codes import CONVERT_DATA_ERR
 logger = logging.getLogger(__name__)
 
 
-def convert_data(resource_id, sql_file_name, sql_file_url, package_id):
+def convert_data(resource_id, sql_file_name, sql_file_url, package_id) -> bool:
     try:
         conf = {
             'resource_id': resource_id,

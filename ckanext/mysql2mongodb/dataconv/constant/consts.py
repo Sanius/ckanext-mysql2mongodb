@@ -61,3 +61,5 @@ MYSQL_MONGO_MAP: Dict[str, str] = {
     **{mysql_datatype: MONGO_MULTIPLE_GEOMETRY_DATATYPE for mysql_datatype in MYSQL_MULTIPLE_GEOMETRY_DATATYPE},
 }
 # endregion
+
+DATABASE_CHUNK_SIZE = 100
