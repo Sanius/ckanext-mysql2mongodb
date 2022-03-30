@@ -49,7 +49,7 @@ def _task_upload_result(**kwargs):
 dag = DAG('data_conversion_flow',
           description='Data Conversion Flow',
           schedule_interval='0 12 * * *',
-          start_date=datetime(2022, 3, 4), catchup=False)
+          start_date=datetime(2022, 3, 4), catchup=False, max_active_runs=1)
 
 task1 = PythonOperator(task_id='prepare_task',
                        python_callable=_task_prepare,

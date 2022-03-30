@@ -45,20 +45,19 @@ class MongoHandler(AbstractDatabaseHandler):
             file_path = f'{schema_crawler_cache_dir}/{db_name}.{JSON_FILE_EXTENSION}'
             # endregion
             # region Get database connection
-            self.set_db(db_name)
+            self._set_db(db_name)
             self._drop_collection_if_exists(MONGO_SCHEMA_COLLECTION)
             # endregion
             with open(file_path) as file:
                 json_data = json.load(file)
             self._store_data_to_collection(MONGO_SCHEMA_COLLECTION, json_data)
-            logger.info(
-                f'Write data from JSON file {db_name} to MongoDB collection MONGO_SCHEMA_COLLECTION of database {self._db} successfully!')
+            logger.info(f'Write data from JSON file {db_name} to MongoDB collection MONGO_SCHEMA_COLLECTION of database {self._db} successfully!')
         except Exception as ex:
             logger.error(f'error code: {MONGO_IMPORT_SCHEMA_ERROR}')
             raise ex
 
     def get_schema_table_name_list(self, db_name: str) -> List:
-        self.set_db(db_name)
+        self._set_db(db_name)
         tables_schemas = self._get_flattened_collection_tables()
         remarks_tables_schema = list(filter(lambda table: not table.get('remarks'), tables_schemas))
         return list(map(lambda table: table['name'], remarks_tables_schema))
@@ -75,7 +74,7 @@ class MongoHandler(AbstractDatabaseHandler):
         )
         """
         try:
-            self.set_db(db_name)
+            self._set_db(db_name)
             all_tables_schemas = self._get_flattened_collection_tables()
             all_columns = self._get_schema_collection_columns()
 
@@ -103,40 +102,8 @@ class MongoHandler(AbstractDatabaseHandler):
             logger.error(f'error code: {MONGO_EXTRACT_COLUMN_DATATYPE_ERROR}')
             raise ex
 
-    @staticmethod
-    def convert_fetched_mysql_data(fetched_data: List, column_type_map: Dict) -> List:
-        try:
-            result = []
-            for record in fetched_data:
-                data = {}
-                for idx, column_name in enumerate(column_type_map.keys()):
-                    datatype = column_type_map[column_name]
-                    target_datatype = MYSQL_MONGO_MAP.get(datatype, '')
-                    # generate SQL
-                    cell_data = record[idx]
-                    if cell_data is None:
-                        continue
-                    if datatype == 'VARBINARY':
-                        converted_data = bytes(cell_data)
-                    elif datatype == 'VARCHAR':
-                        converted_data = str(cell_data)
-                    elif datatype == 'DATE':
-                        converted_data = datetime(cell_data.year, cell_data.month, cell_data.day)
-                    elif target_datatype == MONGO_DECIMAL_DATATYPE:
-                        converted_data = Decimal128(cell_data)
-                    elif target_datatype == MONGO_OBJECT_DATATYPE and not isinstance(cell_data, str):
-                        converted_data = tuple(cell_data)
-                    else:
-                        converted_data = cell_data
-                    data[column_name] = converted_data
-                result.append(data)
-            return result
-        except Exception as ex:
-            logger.error(f'error code: {MONGO_CONVERT_DATA_ERROR}')
-            raise ex
-
     def store_data_to_collection(self, db_name: str, table_name: str, data: Any):
-        self.set_db(db_name)
+        self._set_db(db_name)
         self._store_data_to_collection(table_name, data)
 
     def dump_database(self, resource_id: str, sql_file_name: str):
@@ -144,18 +111,20 @@ class MongoHandler(AbstractDatabaseHandler):
             mongo_dump_data_dir = file_system_handler.get_mongo_dump_cache_path(resource_id)
             db_name = sql_file_name.split('.')[0]
             file_name = f'{db_name}.{GZIP_FILE_EXTENSION}'
-            self.set_db(db_name)
             file_system_handler.create_mongo_dump_cache_dir(resource_id)
+            self._set_db(db_name)
             self._dump_database(mongo_dump_data_dir, file_name)
             logger.info('Dump data successfully!')
         except Exception as ex:
             logger.error(f'error code: {MONGO_DUMP_DATA_ERROR}')
             raise ex
 
+    def drop_old_db(self, db_name):
+        self._set_db(db_name)
+        self._drop_db()
     # endregion
 
     # region Schema crawler methods
-    # Have to set_db first
     def _get_flattened_collection_tables(self) -> List:
         _SELECTED_KEY_SET = ('@uuid', 'name', 'columns', 'remarks')
         _TABLE_TYPES = ('foreign-key-table', 'primary-key-table')
@@ -197,7 +166,6 @@ class MongoHandler(AbstractDatabaseHandler):
     # endregion
 
     # region Middleware methods
-    # Have to set_db first
     def _store_data_to_collection(self, collection_name: str, collection_data: Any):
         db = self._get_db_connection()
         try:
@@ -210,7 +178,7 @@ class MongoHandler(AbstractDatabaseHandler):
             logger.error(f'error code: {MONGO_STORE_DATA_TO_COLLECTION_ERROR}')
             raise ex
 
-    def drop_db(self):
+    def _drop_db(self):
         if not self._db:
             logger.error(f'error code: {MONGO_UNSPECIFIED_DATABASE_ERROR}')
             raise UnspecifiedDatabaseException('Set database first')
@@ -242,6 +210,9 @@ class MongoHandler(AbstractDatabaseHandler):
 
     # region Component methods
     def _dump_database(self, dump_data_dir: str, file_name: str):
+        if not self._db:
+            logger.error(f'error code: {MONGO_UNSPECIFIED_DATABASE_ERROR}')
+            raise UnspecifiedDatabaseException('Set database first')
         file_path = f'{dump_data_dir}/{file_name}'
         mongodump_command = f'{MONGO_TOOL_ENV_VAR_PATH}/{MONGO_DUMP}'
         command_line_str = '''
@@ -267,7 +238,7 @@ class MongoHandler(AbstractDatabaseHandler):
         subprocess.run([command_line_str], check=True, shell=True)
 
     # Override
-    def set_db(self, db: str):
+    def _set_db(self, db: str):
         self._db = db
 
     def _get_db_connection(self) -> Any:
@@ -278,6 +249,7 @@ class MongoHandler(AbstractDatabaseHandler):
         return conn[self._db]
 
     # Override
+    # Does not have to _set_db first
     def _get_open_connection(self) -> Any:
         uri = 'mongodb://{username}:{password}@{host}:{port}/?authMechanism=SCRAM-SHA-256' \
             .format(username=self._username, password=self._password, host=self._host, port=self._port)

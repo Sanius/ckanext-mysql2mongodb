@@ -11,7 +11,7 @@ class AbstractDatabaseHandler(ABC):
         self._db = None
 
     @abstractmethod
-    def set_db(self, db: str): raise NotImplementedError
+    def _set_db(self, db: str): raise NotImplementedError
 
     @abstractmethod
     def _get_open_connection(self) -> Any: raise NotImplementedError
