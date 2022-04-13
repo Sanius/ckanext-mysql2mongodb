@@ -1,6 +1,6 @@
 import logging
 
-from ckanext.mysql2mongodb.dataconv.util.data_conversion import convert_mysql_to_mongodb
+from ckanext.mysql2mongodb.dataconv.converter.data_conversion import convert_mysql_to_mongodb
 
 from ckanext.mysql2mongodb.dataconv.constant.consts import SQL_FILE_EXTENSION
 from ckanext.mysql2mongodb.dataconv.constant.error_codes import TASK_PREPARE_DATA_ERROR, INPUT_FILE_EXTENSION_ERROR, \
@@ -71,6 +71,22 @@ def convert_data(sql_file_name: str):
         logger.error(f'error code: {TASK_CONVERT_DATA_ERROR}')
         raise ex
     # endregion
+
+
+# def validate_data(sql_file_name: str):
+#     try:
+#         mysql_handler = MySQLHandler()
+#         mongo_handler = MongoHandler()
+#         db_name = sql_file_name.split('.')[0]
+#
+#         column_type_map = mongo_handler.get_table_columnname_datatype(db_name)
+#         for table_name in mongo_handler.get_schema_table_name_list(db_name):
+#
+#
+#
+#     except Exception as ex:
+#         logger.error(f'error code: {TASK_VALIDATE_DATA_ERROR}')
+#         raise ex
 
 
 def dump_data(resource_id: str, sql_file_name: str):

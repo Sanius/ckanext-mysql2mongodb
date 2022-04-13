@@ -102,7 +102,7 @@ class MySQLHandler(AbstractDatabaseHandler):
             logger.error(f'error code: {MYSQL_FETCH_DATA_TO_MONGO_ERROR}')
             raise ex
         finally:
-            conn.cursor()
+            conn.close()
     # endregion
 
     # region Middleware methods

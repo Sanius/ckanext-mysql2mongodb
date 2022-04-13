@@ -11,7 +11,7 @@ from ckanext.mysql2mongodb.dataconv.exceptions import TempDirNotCreatedError, Un
 from ckanext.mysql2mongodb.dataconv.settings import CKAN_API_KEY, CKAN_PROTOCOL, CKAN_HOST, CKAN_PORT
 
 from ckanext.mysql2mongodb.dataconv.constant.consts import LOCAL_CKAN_DOWNLOAD_DIR, LOCAL_SCHEMA_CRAWLER_CACHE_DIR, \
-    LOCAL_DATACONV_CACHE, LOCALMONGO_DUMP_CACHE_DIR, GZIP_FILE_EXTENSION
+    LOCAL_DATACONV_CACHE, LOCAL_MONGO_DUMP_CACHE_DIR, GZIP_FILE_EXTENSION
 
 from ckanext.mysql2mongodb.dataconv.constant.error_codes import CREATE_TEMP_DIR_ERROR, \
     DOWNLOAD_CKAN_RESOURCE_ERROR, UPLOAD_RESOURCE_TO_CKAN_ERROR
@@ -27,14 +27,14 @@ def get_ckan_download_cache_path(resource_id: str) -> str:
 
 def get_mongo_dump_cache_path(resource_id: str) -> str:
     current_location = _get_current_location_absolute_path()
-    return f'{current_location}/{LOCALMONGO_DUMP_CACHE_DIR}/{resource_id}'
+    return f'{current_location}/{LOCAL_MONGO_DUMP_CACHE_DIR}/{resource_id}'
 
 
 def upload_to_ckan_mongo_dump_data(resource_id: str, sql_file_name: str, package_id: str):
     try:
         current_location = _get_current_location_absolute_path()
         file_name = f'{sql_file_name.split(".")[0]}.{GZIP_FILE_EXTENSION}'
-        file_path = f'{current_location}/{LOCALMONGO_DUMP_CACHE_DIR}/{resource_id}/{file_name}'
+        file_path = f'{current_location}/{LOCAL_MONGO_DUMP_CACHE_DIR}/{resource_id}/{file_name}'
         response = requests.post(f'{CKAN_PROTOCOL}://{CKAN_HOST}:{CKAN_PORT}/api/action/resource_create',
                                  data={'package_id': package_id,
                                        'name': file_name},
@@ -80,7 +80,7 @@ def create_schema_crawler_cache_dir(extra_dir: str) -> str:
 
 def create_mongo_dump_cache_dir(extra_dir: str) -> str:
     current_location = _get_current_location_absolute_path()
-    mongo_dump_cache_path = f'{current_location}/{LOCALMONGO_DUMP_CACHE_DIR}/{extra_dir}'
+    mongo_dump_cache_path = f'{current_location}/{LOCAL_MONGO_DUMP_CACHE_DIR}/{extra_dir}'
     _create_temp_dir(mongo_dump_cache_path)
     return mongo_dump_cache_path
 

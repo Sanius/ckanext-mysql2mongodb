@@ -9,6 +9,7 @@ from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import convert_schema as my
 from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import convert_data as mysql2mongo_convert_data
 from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import dump_data as mysql2mongo_dump_data
 from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import upload_converted_data as mysql2mongo_upload_data
+# from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import validate_data as mysql2mongo_validate_data
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,11 @@ def _task_convert_schema(**kwargs):
 def _task_convert_data(**kwargs):
     input_file_info = kwargs['ti'].xcom_pull(task_ids='prepare_task', key='input_file_info')
     mysql2mongo_convert_data(input_file_info['sql_file_name'])
+
+
+# def _task_validate_data(**kwargs):
+#     input_file_info = kwargs['ti'].xcom_pull(task_ids='prepare_task', key='input_file_info')
+#     mysql2mongo_validate_data(input_file_info['sql_file_name'])
 
 
 def _task_dump_data(**kwargs):
