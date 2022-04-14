@@ -1,18 +1,22 @@
 import logging
 import subprocess
-from typing import Any, Generator
+from typing import Any, Generator, Dict
+
+import pandas as pd
+from sqlalchemy import MetaData
 
 from ckanext.mysql2mongodb.dataconv.constant.consts import MYSQL, SCHEMA_CRAWLER, JSON_FILE_EXTENSION, MYSQL_MONGO_MAP, \
     MONGO_SINGLE_GEOMETRY_DATATYPE, DATABASE_CHUNK_SIZE
 
 from ckanext.mysql2mongodb.dataconv.file_system import file_system_handler
 
-from ckanext.mysql2mongodb.dataconv.exceptions import UnspecifiedDatabaseException, DatabaseConnectionError, \
-    DatatypeMappingException, MySQLDatabaseNotFoundException
+from ckanext.mysql2mongodb.dataconv.exceptions import DatabaseConnectionError, \
+    DatatypeMappingException, MySQLDatabaseNotFoundException, UnsupportedDatabaseException, UnspecifiedDatabaseException
 
 from ckanext.mysql2mongodb.dataconv.constant.error_codes import MYSQL_DATABASE_CONNECTION_ERROR, \
-    MYSQL_UNSPECIFIED_DATABASE_ERROR, MYSQL_EXPORT_SCHEMA_ERROR, MYSQL_RESTORE_DATA_ERROR, \
-    MYSQL_FETCH_DATA_TO_MONGO_ERROR, MYSQL_CREATE_DATABASE_ERROR, MYSQL_DATABASE_NOT_FOUND_ERROR
+    MYSQL_EXPORT_SCHEMA_ERROR, MYSQL_RESTORE_DATA_ERROR, \
+    MYSQL_FETCH_DATA_TO_MONGO_ERROR, MYSQL_CREATE_DATABASE_ERROR, MYSQL_DATABASE_NOT_FOUND_ERROR, \
+    MYSQL_UNSPECIFIED_DATABASE_ERROR
 from mysql import connector as mysql_connector
 from ckanext.mysql2mongodb.dataconv.database.abstract_database_handler import AbstractDatabaseHandler
 
@@ -36,13 +40,13 @@ class MySQLHandler(AbstractDatabaseHandler):
         """
         e.g. file_name: sakila.sql
         """
+        db_name = file_name.split('.')[0]
         try:
-            db_name = file_name.split('.')[0]
-            self._set_db(db_name)
-            self._create_db()
+            self._drop_db_if_exists(db_name)
+            self._create_db(db_name)
             # Get file path
             file_path = f'{file_system_handler.get_ckan_download_cache_path(resource_id)}/{file_name}'
-            self._restore(file_path)
+            self._restore(db_name, file_path)
             logger.info(f'Restore MySQL database successfully')
         except Exception as ex:
             logger.error(f'error code: {MYSQL_RESTORE_DATA_ERROR}')
@@ -53,32 +57,28 @@ class MySQLHandler(AbstractDatabaseHandler):
         Generate MySQL schema using SchemaCrawler, then save as JSON file at intermediate directory.
         """
         db_name = file_name.split('.')[0]
-        if not self._does_db_exist(db_name):
-            logger.error(f'error code: {MYSQL_DATABASE_NOT_FOUND_ERROR}')
-            raise MySQLDatabaseNotFoundException('Database not found')
         try:
+            if not db_name or not self._does_db_exist(db_name):
+                logger.error(f'error code: {MYSQL_DATABASE_NOT_FOUND_ERROR}')
+                raise MySQLDatabaseNotFoundException('Database not found')
+
             schema_crawler_cache_dir = file_system_handler.create_schema_crawler_cache_dir(resource_id)
             file_path = f'{schema_crawler_cache_dir}/{db_name}.{JSON_FILE_EXTENSION}'
-            self._set_db(db_name)
-            self._generate_schema_file(file_path)
+            self._generate_schema_file(db_name, file_path)
             logger.info(f'Generate MySQL database {db_name} schema successfully!')
         except Exception as ex:
             logger.error(f'error code: {MYSQL_EXPORT_SCHEMA_ERROR}')
             raise ex
 
-    def fetch_data_for_mongo(self, db_name: str, table_name: str, column_type_map: dict) -> Generator:
+    def fetch_data_for_mongo(self, db_name: str, table_name: str, column_datatype_map: Dict) -> Generator:
         """
-        column_type_dict = { <column_name>: <column_datatype> }
+        column_datatype_map = { <column_name>: <column_datatype> }
         """
-        if not self._does_db_exist(db_name):
-            logger.error(f'error code: {MYSQL_DATABASE_NOT_FOUND_ERROR}')
-            raise MySQLDatabaseNotFoundException('Database not found')
-        self._set_db(db_name)
-        conn = self._get_db_connection()
+        conn = self._get_db_connection(db_name)
         try:
             sql_cmd = 'SELECT'
-            for column_name in column_type_map.keys():
-                mysql_datatype = column_type_map.get(column_name)
+            for column_name in column_datatype_map.keys():
+                mysql_datatype = column_datatype_map.get(column_name)
                 mongo_datatype = MYSQL_MONGO_MAP.get(mysql_datatype)
                 if not mongo_datatype:
                     raise DatatypeMappingException(f'Data type {mysql_datatype} has not been handled!')
@@ -87,16 +87,15 @@ class MySQLHandler(AbstractDatabaseHandler):
                 else:
                     sql_cmd = f'{sql_cmd} `{column_name}`,'
             sql_cmd = f'{sql_cmd[:-1]} FROM `{table_name}`'
-            cursor = conn.cursor()
-            cursor.execute(sql_cmd)
 
-            while True:
-                if not (rows := cursor.fetchmany(DATABASE_CHUNK_SIZE)):
-                    break
-                yield rows
+            with conn.cursor() as cursor:
+                cursor.execute(sql_cmd)
+                while True:
+                    if not (rows := cursor.fetchmany(DATABASE_CHUNK_SIZE)):
+                        break
+                    yield rows
+                conn.commit()
 
-            conn.commit()
-            cursor.close()
             logger.info(f'Fetch data from database: {db_name} table: {table_name} successfully!')
         except Exception as ex:
             logger.error(f'error code: {MYSQL_FETCH_DATA_TO_MONGO_ERROR}')
@@ -105,45 +104,27 @@ class MySQLHandler(AbstractDatabaseHandler):
             conn.close()
     # endregion
 
-    # region Middleware methods
-    # Have to _set_db first
-    def _create_db(self):
-        if not self._db:
-            logger.error(f'error code: {MYSQL_UNSPECIFIED_DATABASE_ERROR}')
-            raise UnspecifiedDatabaseException('Set database first')
+    # region Component methods
+    def _create_db(self, db_name: str):
         conn = self._get_open_connection()
-        db_cursor = conn.cursor()
         try:
-            db_cursor.execute(f'CREATE DATABASE IF NOT EXISTS {self._db};')
-            conn.commit()
+            if not db_name:
+                logger.error(f'error code: {MYSQL_UNSPECIFIED_DATABASE_ERROR}')
+                raise UnspecifiedDatabaseException('Database name is incorrect')
+            with conn.cursor() as db_cursor:
+                db_cursor.execute(f'CREATE DATABASE IF NOT EXISTS {db_name};')
+                conn.commit()
         except Exception as ex:
             logger.error(f'error code: {MYSQL_CREATE_DATABASE_ERROR}')
             raise ex
         finally:
-            db_cursor.close()
             conn.close()
 
-    def _does_db_exist(self, db_name: str) -> bool:
-        exists = False
-        if db_name:
-            conn = self._get_open_connection()
-            cur = conn.cursor()
-            cur.execute('SHOW DATABASES;')
-            for db in cur.fetchall():
-                if db[0] == db_name:
-                    exists = True
-                    break
-            cur.close()
-            conn.close()
-        return exists
-    # endregion
+    def _restore(self, db_name: str, file_path: str):
+        if not db_name or not self._does_db_exist(db_name):
+            logger.error(f'error code: {MYSQL_DATABASE_NOT_FOUND_ERROR}')
+            raise MySQLDatabaseNotFoundException('Database not found')
 
-    # region Component methods
-    # Have to _set_db first
-    def _restore(self, file_path: str):
-        if not self._db:
-            logger.error(f'error code: {MYSQL_UNSPECIFIED_DATABASE_ERROR}')
-            raise UnspecifiedDatabaseException('Set database first')
         mysql_command = f'{MYSQL_ENV_VAR_PATH}/{MYSQL}'
         command_line_str = '''
             {command} -h {mysql_host} \
@@ -155,15 +136,15 @@ class MySQLHandler(AbstractDatabaseHandler):
                    mysql_port=self._port,
                    mysql_user=self._username,
                    mysql_password=self._password,
-                   mysql_database=self._db,
+                   mysql_database=db_name,
                    file_path=file_path)
         subprocess.run([command_line_str], check=True, shell=True)
 
-    # Have to _set_db first
-    def _generate_schema_file(self, file_path: str):
-        if not self._db:
-            logger.error(f'error code: {MYSQL_UNSPECIFIED_DATABASE_ERROR}')
-            raise UnspecifiedDatabaseException('Set database first')
+    def _generate_schema_file(self, db_name: str, file_path: str):
+        if not db_name or not self._does_db_exist(db_name):
+            logger.error(f'error code: {MYSQL_DATABASE_NOT_FOUND_ERROR}')
+            raise MySQLDatabaseNotFoundException('Database not found')
+
         schema_crawler_command = f'{SCHEMA_CRAWLER_ENV_VAR_PATH}/{SCHEMA_CRAWLER}'
         command_line_str = '''
             {command} --server=mysql \
@@ -180,39 +161,60 @@ class MySQLHandler(AbstractDatabaseHandler):
             command=schema_crawler_command,
             mysql_host=self._host,
             mysql_port=self._port,
-            mysql_database=self._db,
+            mysql_database=db_name,
             mysql_user=self._username,
             mysql_password=self._password,
             schema_crawler_file_path=file_path
         )
         subprocess.run([command_line_str], check=True, shell=True)
 
-    # Override
-    def _set_db(self, db: str):
-        self._db = db
-
-    # Have to _set_db first
-    def _get_db_connection(self) -> Any:
-        if not self._db:
-            logger.error(f'error code: {MYSQL_UNSPECIFIED_DATABASE_ERROR}')
-            raise UnspecifiedDatabaseException('Set database first')
+    def _drop_db_if_exists(self, db_name: str):
+        conn = self._get_open_connection()
         try:
+            with conn.cursor() as db_cursor:
+                db_cursor.execute(f'DROP DATABASE IF EXISTS {db_name};')
+                conn.commit()
+        except Exception as ex:
+            logger.error(f'error code: {MYSQL_CREATE_DATABASE_ERROR}')
+            raise ex
+        finally:
+            conn.close()
+
+    def _get_db_connection(self, db_name: str) -> mysql_connector.CMySQLConnection:
+        try:
+            if not db_name or not self._does_db_exist(db_name):
+                logger.error(f'error code: {MYSQL_DATABASE_NOT_FOUND_ERROR}')
+                raise MySQLDatabaseNotFoundException('Database not found')
+
             conn = mysql_connector.connect(
                 host=self._host,
                 port=self._port,
                 user=self._username,
                 password=self._password,
-                database=self._db
+                database=db_name
             )
             if not conn.is_connected():
-                raise DatabaseConnectionError(f'Unable to connect to mysql database {self._db}')
+                raise DatabaseConnectionError(f'Unable to connect to mysql database {db_name}')
             return conn
         except Exception as ex:
             logger.error(f'error code: {MYSQL_DATABASE_CONNECTION_ERROR}')
             raise ex
+    # endregion
+
+    # region Inheritance methods
+    # Override
+    def _does_db_exist(self, db_name: str) -> bool:
+        exists = False
+        if db_name:
+            conn = self._get_open_connection()
+            with conn.cursor() as cur:
+                cur.execute('SHOW DATABASES;')
+                exists = db_name in set(db[0] for db in cur.fetchall())
+            conn.close()
+        return exists
 
     # Override
-    def _get_open_connection(self) -> Any:
+    def _get_open_connection(self) -> mysql_connector.CMySQLConnection:
         try:
             conn = mysql_connector.connect(
                 host=self._host,

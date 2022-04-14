@@ -1,6 +1,6 @@
 import logging
 
-from ckanext.mysql2mongodb.dataconv.converter.data_conversion import convert_mysql_to_mongodb
+from ckanext.mysql2mongodb.dataconv.converter import convert_mysql_to_mongodb
 
 from ckanext.mysql2mongodb.dataconv.constant.consts import SQL_FILE_EXTENSION
 from ckanext.mysql2mongodb.dataconv.constant.error_codes import TASK_PREPARE_DATA_ERROR, INPUT_FILE_EXTENSION_ERROR, \
@@ -20,7 +20,7 @@ def prepare(sql_file_url: str, resource_id: str, sql_file_name: str):
             logger.error(f'error code: {INPUT_FILE_EXTENSION_ERROR}')
             raise InvalidFileExtensionError('Invalid MySQL backup file extension!')
         # region Main tasks
-        file_system_handler.download_from_ckan_mysql_file(sql_file_url, resource_id, sql_file_name)
+        file_system_handler.download_mysql_file_from_ckan(sql_file_url, resource_id, sql_file_name)
         # endregion
         logger.info('Task prepare success')
     except Exception as ex:
@@ -33,8 +33,7 @@ def convert_schema(resource_id: str, sql_file_name: str):
         # region Init database handlers
         mysql_handler = MySQLHandler()
         mongo_handler = MongoHandler()
-
-        mongo_handler.drop_old_db(sql_file_name.split('.')[0])
+        mongo_handler.drop_db_if_exists(sql_file_name.split('.')[0])
         # endregion
         # region Main tasks
         mysql_handler.restore_from_ckan(resource_id, sql_file_name)
@@ -60,12 +59,13 @@ def convert_data(sql_file_name: str):
         mongo_handler = MongoHandler()
         # endregion
         # region Main tasks
-        column_type_map = mongo_handler.get_table_columnname_datatype(db_name)
-        for table_name in mongo_handler.get_schema_table_name_list(db_name):
-            data_generator = mysql_handler.fetch_data_for_mongo(db_name, table_name, column_type_map[table_name])
+        table_schema_datatype_map = mongo_handler.get_table_schema_datatype_map(db_name)
+        for table_name in mongo_handler.get_table_name_list(db_name):
+            data_generator = mysql_handler.fetch_data_for_mongo(db_name, table_name, table_schema_datatype_map[table_name])
             for fetched_data in data_generator:
-                converted_data = convert_mysql_to_mongodb(fetched_data, column_type_map[table_name])
+                converted_data = convert_mysql_to_mongodb(fetched_data, table_schema_datatype_map[table_name])
                 mongo_handler.store_data_to_collection(db_name, table_name, converted_data)
+        # endregion
         logger.info('Task convert data success')
     except Exception as ex:
         logger.error(f'error code: {TASK_CONVERT_DATA_ERROR}')
@@ -80,9 +80,7 @@ def convert_data(sql_file_name: str):
 #         db_name = sql_file_name.split('.')[0]
 #
 #         column_type_map = mongo_handler.get_table_columnname_datatype(db_name)
-#         for table_name in mongo_handler.get_schema_table_name_list(db_name):
-#
-#
+#         # for table_name in mongo_handler.get_schema_table_name_list(db_name):
 #
 #     except Exception as ex:
 #         logger.error(f'error code: {TASK_VALIDATE_DATA_ERROR}')
@@ -101,7 +99,7 @@ def dump_data(resource_id: str, sql_file_name: str):
 
 def upload_converted_data(resource_id: str, sql_file_name: str, package_id: str):
     try:
-        file_system_handler.upload_to_ckan_mongo_dump_data(resource_id, sql_file_name, package_id)
+        file_system_handler.upload_mongo_dump_data_to_ckan(resource_id, sql_file_name, package_id)
         logger.info('Task upload data success')
     except Exception as ex:
         logger.error(f'error code: {TASK_UPLOAD_DATA_ERROR}')

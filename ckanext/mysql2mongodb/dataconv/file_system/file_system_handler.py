@@ -30,7 +30,7 @@ def get_mongo_dump_cache_path(resource_id: str) -> str:
     return f'{current_location}/{LOCAL_MONGO_DUMP_CACHE_DIR}/{resource_id}'
 
 
-def upload_to_ckan_mongo_dump_data(resource_id: str, sql_file_name: str, package_id: str):
+def upload_mongo_dump_data_to_ckan(resource_id: str, sql_file_name: str, package_id: str):
     try:
         current_location = _get_current_location_absolute_path()
         file_name = f'{sql_file_name.split(".")[0]}.{GZIP_FILE_EXTENSION}'
@@ -49,21 +49,16 @@ def upload_to_ckan_mongo_dump_data(resource_id: str, sql_file_name: str, package
         raise ex
 
 
-def download_from_ckan_mysql_file(sql_file_url: str, resource_id: str, sql_file_name: str):
+def download_mysql_file_from_ckan(sql_file_url: str, resource_id: str, sql_file_name: str):
     current_location = _get_current_location_absolute_path()
     download_path = f'{current_location}/{LOCAL_CKAN_DOWNLOAD_DIR}/{resource_id}'
     try:
         _create_temp_dir(download_path)
-        # region Download sql file
-        # subprocess.run([
-        #     f'curl -H \'X-CKAN-API-Key: {CKAN_API_KEY}\' -o {download_path}/{sql_file_name} {sql_file_url}'
-        # ], shell=True, check=True)
         response = requests.get(sql_file_url, headers={'X-CKAN-API-Key': CKAN_API_KEY})
         if response.status_code != http.HTTPStatus.OK:
             logger.error(f'error code: {DOWNLOAD_CKAN_RESOURCE_ERROR}')
             raise UnavailableResourceError('Cannot download from ckan')
         open(f'{download_path}/{sql_file_name}', 'wb').write(response.content)
-        # endregion
         logger.info('Download ckan resource successfully')
     except Exception as ex:
         logger.error(f'error code: {DOWNLOAD_CKAN_RESOURCE_ERROR}')

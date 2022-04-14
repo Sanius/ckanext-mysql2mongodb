@@ -3,7 +3,5 @@ from ckanext.mysql2mongodb.dataconv.database.mysql_handler import MySQLHandler
 from ckanext.mysql2mongodb.dataconv.database.mongo_handler import MongoHandler
 
 
-class Validator:
-    def __init__(self):
-        self._mongo_handler = MongoHandler()
-        self._mysql_handler = MySQLHandler()
+def compare_total_rows(mysql_handler: MySQLHandler, mongo_handler: MongoHandler, db_name: str):
+    pass

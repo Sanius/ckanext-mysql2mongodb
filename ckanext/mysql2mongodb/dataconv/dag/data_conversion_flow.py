@@ -9,7 +9,6 @@ from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import convert_schema as my
 from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import convert_data as mysql2mongo_convert_data
 from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import dump_data as mysql2mongo_dump_data
 from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import upload_converted_data as mysql2mongo_upload_data
-# from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import validate_data as mysql2mongo_validate_data
 
 logger = logging.getLogger(__name__)
 

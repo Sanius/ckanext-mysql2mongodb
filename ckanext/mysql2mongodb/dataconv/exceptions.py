@@ -34,5 +34,9 @@ class MySQLDatabaseNotFoundException(Exception):
     pass
 
 
+class MongoDatabaseNotFoundException(Exception):
+    pass
+
+
 class MongoCollectionNotFoundException(Exception):
     pass
