@@ -18,6 +18,10 @@ class UploadResourceError(Exception):
     pass
 
 
+class MySQLTableNotFoundError(Exception):
+    pass
+
+
 class UnsupportedDatabaseException(Exception):
     pass
 

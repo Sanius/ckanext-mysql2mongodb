@@ -6,7 +6,7 @@ from ckanext.mysql2mongodb.dataconv.settings import POSTGRESQL_LOG_HOST, POSTGRE
 from ckanext.mysql2mongodb.dataconv.database.abstract_database_handler import AbstractDatabaseHandler
 
 
-class SchemaHandler(AbstractDatabaseHandler):
+class ValidatorLogHandler(AbstractDatabaseHandler):
     # Override
     def __init__(self):
         super().__init__()

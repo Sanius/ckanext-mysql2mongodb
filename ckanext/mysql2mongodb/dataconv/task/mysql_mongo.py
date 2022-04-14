@@ -59,11 +59,11 @@ def convert_data(sql_file_name: str):
         mongo_handler = MongoHandler()
         # endregion
         # region Main tasks
-        table_schema_datatype_map = mongo_handler.get_table_schema_datatype_map(db_name)
+        table_datatype_map = mongo_handler.get_table_datatype_map(db_name)
         for table_name in mongo_handler.get_table_name_list(db_name):
-            data_generator = mysql_handler.fetch_data_for_mongo(db_name, table_name, table_schema_datatype_map[table_name])
+            data_generator = mysql_handler.fetch_data_for_mongo(db_name, table_name, table_datatype_map[table_name])
             for fetched_data in data_generator:
-                converted_data = convert_mysql_to_mongodb(fetched_data, table_schema_datatype_map[table_name])
+                converted_data = convert_mysql_to_mongodb(fetched_data, table_datatype_map[table_name])
                 mongo_handler.store_data_to_collection(db_name, table_name, converted_data)
         # endregion
         logger.info('Task convert data success')
