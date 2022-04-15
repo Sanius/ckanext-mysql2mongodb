@@ -15,8 +15,10 @@ class ValidatorLogHandler(AbstractDatabaseHandler):
         self._username = POSTGRESQL_LOG_USER
         self._password = POSTGRESQL_LOG_PASSWORD
 
-    # Override
-    def _set_db(self, db: str): raise NotImplementedError
-
+    # region Inheritance methods
     # Override
     def _get_open_connection(self) -> Any: raise NotImplementedError
+
+    # Override
+    def _does_db_exist(self, db_name: str) -> bool: raise NotImplementedError
+    # endregion

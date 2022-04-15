@@ -1,10 +1,12 @@
 import logging
 
 from ckanext.mysql2mongodb.dataconv.converter import convert_mysql_to_mongodb
+from ckanext.mysql2mongodb.dataconv.validation import validator
 
 from ckanext.mysql2mongodb.dataconv.constant.consts import SQL_FILE_EXTENSION
 from ckanext.mysql2mongodb.dataconv.constant.error_codes import TASK_PREPARE_DATA_ERROR, INPUT_FILE_EXTENSION_ERROR, \
-    TASK_CONVERT_SCHEMA_ERROR, TASK_CONVERT_DATA_ERROR, TASK_DUMP_DATA_ERROR, TASK_UPLOAD_DATA_ERROR
+    TASK_CONVERT_SCHEMA_ERROR, TASK_CONVERT_DATA_ERROR, TASK_DUMP_DATA_ERROR, TASK_UPLOAD_DATA_ERROR, \
+    TASK_VALIDATE_DATA_ERROR
 from ckanext.mysql2mongodb.dataconv.database.mongo_handler import MongoHandler
 from ckanext.mysql2mongodb.dataconv.database.mysql_handler import MySQLHandler
 from ckanext.mysql2mongodb.dataconv.exceptions import InvalidFileExtensionError
@@ -73,18 +75,22 @@ def convert_data(sql_file_name: str):
     # endregion
 
 
-# def validate_data(sql_file_name: str):
-#     try:
-#         mysql_handler = MySQLHandler()
-#         mongo_handler = MongoHandler()
-#         db_name = sql_file_name.split('.')[0]
-#
-#         column_type_map = mongo_handler.get_table_columnname_datatype(db_name)
-#         # for table_name in mongo_handler.get_schema_table_name_list(db_name):
-#
-#     except Exception as ex:
-#         logger.error(f'error code: {TASK_VALIDATE_DATA_ERROR}')
-#         raise ex
+def validate_data(sql_file_name: str):
+    try:
+        mysql_handler = MySQLHandler()
+        mongo_handler = MongoHandler()
+        db_name = sql_file_name.split('.')[0]
+
+        table_primary_key_map = mongo_handler.get_table_primary_keys_map(db_name)
+        table_name_list = mongo_handler.get_table_name_list(db_name)
+        for table_name in table_name_list:
+            mysql_df = mysql_handler.to_pandas_dataframe(db_name, table_name, table_primary_key_map[table_name])
+            mongo_df = mongo_handler.to_pandas_dataframe(db_name, table_name, table_primary_key_map[table_name])
+            validator.compare_total_rows(mysql_df, mongo_df)
+
+    except Exception as ex:
+        logger.error(f'error code: {TASK_VALIDATE_DATA_ERROR}')
+        raise ex
 
 
 def dump_data(resource_id: str, sql_file_name: str):

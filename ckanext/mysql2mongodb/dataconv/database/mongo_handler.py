@@ -2,8 +2,8 @@ import json
 import logging
 import subprocess
 from collections import OrderedDict
-from typing import List, Dict, Union
 import typing
+from typing import List, Dict, Union, Set
 
 import pandas as pd
 
@@ -19,7 +19,8 @@ from ckanext.mysql2mongodb.dataconv.constant.error_codes import MONGO_DATABASE_C
     MONGO_DROP_DATABASE_ERROR, MONGO_IMPORT_SCHEMA_ERROR, MONGO_DROP_COLLECTION_ERROR, \
     MONGO_STORE_DATA_TO_COLLECTION_ERROR, MONGO_COLLECTION_NOT_FOUND_ERROR, \
     MONGO_EXTRACT_COLUMN_DATATYPE_ERROR, MONGO_DUMP_DATA_ERROR, MONGO_DATABASE_NOT_FOUND_ERROR, \
-    MONGO_UNSPECIFIED_DATABASE_ERROR
+    MONGO_UNSPECIFIED_DATABASE_ERROR, MONGO_UNABLE_TO_CREATE_PANDAS_DATAFRAME_ERROR, \
+    MONGO_UNABLE_TO_GET_TABLE_PRIMARY_KEY_ERROR
 from pymongo import MongoClient
 from pymongo.database import Database
 
@@ -96,49 +97,72 @@ class MongoHandler(AbstractDatabaseHandler):
             logger.error(f'error code: {MONGO_EXTRACT_COLUMN_DATATYPE_ERROR}')
             raise ex
 
-    # def to_pandas_dataframe(self, db_name: str, collection_name: str) -> pd.DataFrame:
-    #     try:
-    #         if not self.does_collection_exists(db_name, collection_name):
-    #             logger.error(f'error code: {MONGO_COLLECTION_NOT_FOUND_ERROR}')
-    #             raise MongoCollectionNotFoundException(f'collection {MONGO_SCHEMA_COLLECTION} not found')
-    #         db = self._get_db_connection(db_name)
-    #         return pd.DataFrame(db[collection_name].find())
-    #     except Exception as ex:
-    #         logger.error(f'error code: {MONGO_UNABLE_TO_CREATE_PANDAS_DATAFRAME_ERROR}')
-    #         raise ex
+    def get_table_name_list(self, db_name: str) -> List:
+        return list(self._get_table_schema_dataframe(db_name)['table_name'].unique())
+
+    def get_table_primary_keys_map(self, db_name: str) -> Dict:
+        """
+        Get dict of table name and primary key columns names.
+        Dict(
+                key: <table name>
+                value: List(<primary key column name>)
+        )
+        """
+        try:
+            table_schema_df = self._get_table_schema_dataframe(db_name)
+            filter_clause = table_schema_df['is_primary_key'] == True
+            return table_schema_df[filter_clause].groupby(by='table_name', sort=False) \
+                .apply(lambda df: list(df['column_name'].unique())) \
+                .to_dict()
+        except Exception as ex:
+            logger.error(f'error code: {MONGO_UNABLE_TO_GET_TABLE_PRIMARY_KEY_ERROR}')
+            raise ex
+
+    def to_pandas_dataframe(self, db_name: str, collection_name: str, index_cols: List) -> pd.DataFrame:
+        try:
+            if not self._does_collection_exists(db_name, collection_name):
+                logger.error(f'error code: {MONGO_COLLECTION_NOT_FOUND_ERROR}')
+                raise MongoCollectionNotFoundException(f'collection {MONGO_SCHEMA_COLLECTION} not found')
+            db = self._get_db_connection(db_name)
+            df = pd.DataFrame(db[collection_name].find())
+            return df if not index_cols else df.set_index(index_cols)
+        except Exception as ex:
+            logger.error(f'error code: {MONGO_UNABLE_TO_CREATE_PANDAS_DATAFRAME_ERROR}')
+            raise ex
     # endregion
 
     # region Schema crawler methods
     def _get_table_schema_dataframe(self, db_name: str) -> pd.DataFrame:
         """
-        ____________________________________________________________
-        | column_uuid | table_name | column_name | column_datatype |
-        | (index)     |            |             |                 |
-        ____________________________________________________________
-        |             |            |             |                 |
-        |             |            |             |                 |
-        |             |            |             |                 |
-        ____________________________________________________________
+        _____________________________________________________________________________
+        | column_uuid | table_name | column_name | column_datatype | is_primary_key |
+        | (index)     |            |             |                 |                |
+        _____________________________________________________________________________
+        |             |            |             |                 |                |
+        |             |            |             |                 |                |
+        |             |            |             |                 |                |
+        _____________________________________________________________________________
         """
-        def get_column_tablename() -> typing.OrderedDict:
+
+        def get_column_tablename() -> typing.OrderedDict[str, str]:
             """
             { column_uuid: table_name }
             """
-            all_tables = self._get_schema_collection_tables_flattened(db_name)
+            all_tables = self._get_schema_collection_real_tables(db_name)
             return OrderedDict(
                 (str(column_uuid), table['name'])
                 for table in all_tables
                 for column_uuid in table['columns']
             )
 
-        def get_column_name() -> typing.OrderedDict:
+        def get_column_name() -> typing.OrderedDict[str, str]:
             """
             { column_uuid: column_name }
             """
             all_columns = self._get_schema_collection_columns(db_name)
             return OrderedDict((column['@uuid'], column['name']) for column in all_columns)
 
-        def get_column_datatype() -> Dict:
+        def get_column_datatype() -> Dict[str, str]:
             """
             { column_uuid: column_datatype_name }
             """
@@ -152,30 +176,44 @@ class MongoHandler(AbstractDatabaseHandler):
                     datatype_uuid = datatype['@uuid']
                     datatype_uuid_name_map[datatype['@uuid']] = datatype['name'].split(' ')[0]
                 column_uuid_datatypeuuid[column['@uuid']] = datatype_uuid
-
             return {column_uuid: datatype_uuid_name_map[datatype_uuid]
                     for column_uuid, datatype_uuid in column_uuid_datatypeuuid.items()}
+
+        def get_tables_primary_keys() -> Set[str]:
+            """
+            { column_uuid: primary_key }
+            """
+            all_tables = self._get_schema_collection_real_tables(db_name, 'indexes')
+            result = set()
+            for table in all_tables:
+                for index in table['indexes']:
+                    if isinstance(index, str):
+                        result.add(index)
+                    if isinstance(index, dict) and index['name'] == 'PRIMARY':
+                        result = {*result, *index['columns']}
+            return result
 
         schema_list = []
         column_tablename = get_column_tablename()
         column_datatype = get_column_datatype()
         column_name = get_column_name()
+        tables_primary_keys = get_tables_primary_keys()
         for column_uuid in column_tablename:
             schema_list.append({
                 'column_uuid': column_uuid,
                 'table_name': column_tablename.get(column_uuid),
                 'column_name': column_name.get(column_uuid),
                 'column_datatype': column_datatype.get(column_uuid),
+                'is_primary_key': column_uuid in tables_primary_keys
             })
-        return pd.DataFrame(schema_list).set_index('column_uuid')
+        return pd.DataFrame(schema_list).set_index(['column_uuid'])
 
-    def get_table_name_list(self, db_name: str) -> List:
-        db_schema = self._get_schema_collection_tables_flattened(db_name)
-        tables_not_views = list(filter(lambda table: not table.get('remarks'), db_schema))
-        return list(map(lambda table: table['name'], tables_not_views))
+    def _get_schema_collection_real_tables(self, db_name: str, *extended_keys) -> List:
+        all_tables = self._get_schema_collection_tables_flattened(db_name, *extended_keys)
+        return list(filter(lambda table: not table.get('remarks'), all_tables))
 
-    def _get_schema_collection_tables_flattened(self, db_name: str) -> List:
-        _SELECTED_KEY_SET = ('@uuid', 'name', 'columns', 'remarks')
+    def _get_schema_collection_tables_flattened(self, db_name: str, *extended_keys) -> List:
+        _SELECTED_KEY_SET = ('@uuid', 'name', 'columns', 'remarks', *extended_keys)
         _TABLE_TYPES = ('foreign-key-table', 'primary-key-table')
 
         def flatten(key_collections: List) -> List:
@@ -192,7 +230,8 @@ class MongoHandler(AbstractDatabaseHandler):
 
         schemas_collections = self._get_schema_collection(db_name)
         table_list = []
-        for schema_collection in list(filter(lambda collection: isinstance(collection, dict), schemas_collections['catalog']['tables'])):
+        for schema_collection in list(
+            filter(lambda collection: isinstance(collection, dict), schemas_collections['catalog']['tables'])):
             table_list = [*table_list,
                           {k: schema_collection[k] for k in _SELECTED_KEY_SET},
                           *flatten(schema_collection['foreign-keys'])]
@@ -207,11 +246,12 @@ class MongoHandler(AbstractDatabaseHandler):
         return list(filter(lambda record: isinstance(record, dict), schema_collection['all-table-columns']))
 
     def _get_schema_collection(self, db_name: str) -> Dict:
-        if not self.does_collection_exists(db_name, MONGO_SCHEMA_COLLECTION):
+        if not self._does_collection_exists(db_name, MONGO_SCHEMA_COLLECTION):
             logger.error(f'error code: {MONGO_COLLECTION_NOT_FOUND_ERROR}')
             raise MongoCollectionNotFoundException(f'collection {MONGO_SCHEMA_COLLECTION} not found')
         schema_collection = self._get_db_connection(db_name)[MONGO_SCHEMA_COLLECTION]
         return schema_collection.find()[0]
+
     # endregion
 
     # region Middleware methods
@@ -258,7 +298,7 @@ class MongoHandler(AbstractDatabaseHandler):
     def _drop_collection_if_exists(self, db_name: str, collection_name: str):
         try:
             db = self._get_db_connection(db_name)
-            if self.does_collection_exists(db_name, collection_name):
+            if self._does_collection_exists(db_name, collection_name):
                 db.drop_collection(collection_name)
                 logger.info(f'Drop collection successfully')
             else:
@@ -270,7 +310,7 @@ class MongoHandler(AbstractDatabaseHandler):
     # endregion
 
     # region Component methods
-    def does_collection_exists(self, db_name: str, collection_name: str) -> bool:
+    def _does_collection_exists(self, db_name: str, collection_name: str) -> bool:
         db = self._get_db_connection(db_name)
         return False if not collection_name else db[collection_name].count_documents({'_id': {'$exists': True}}) == 1
 
@@ -288,6 +328,7 @@ class MongoHandler(AbstractDatabaseHandler):
             logger.error(f'error code: {MONGO_UNSPECIFIED_DATABASE_ERROR}')
             raise UnspecifiedDatabaseException('Database name is incorrect')
         return self._get_open_connection()[db_name]
+
     # endregion
 
     # region Inheritance methods

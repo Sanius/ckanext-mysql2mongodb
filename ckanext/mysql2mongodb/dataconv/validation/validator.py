@@ -6,6 +6,4 @@ from ckanext.mysql2mongodb.dataconv.database.mongo_handler import MongoHandler
 
 
 def compare_total_rows(mysql_df: pd.DataFrame, mongo_df: pd.DataFrame):
-    # if not (len(mysql_df) == len(mongo_df)):
-    #     pass
     pass
