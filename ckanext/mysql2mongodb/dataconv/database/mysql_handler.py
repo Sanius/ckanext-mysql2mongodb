@@ -22,7 +22,7 @@ from ckanext.mysql2mongodb.dataconv.constant.error_codes import MYSQL_DATABASE_C
 from mysql import connector as mysql_connector
 from ckanext.mysql2mongodb.dataconv.database.abstract_database_handler import AbstractDatabaseHandler
 
-from ckanext.mysql2mongodb.dataconv.settings import MYSQL_HOST, MYSQL_PORT, MYSQL_USERNAME, MYSQL_PASSWORD, \
+from ckanext.mysql2mongodb.settings import MYSQL_HOST, MYSQL_PORT, MYSQL_USERNAME, MYSQL_PASSWORD, \
     MYSQL_ENV_VAR_PATH, SCHEMA_CRAWLER_ENV_VAR_PATH
 
 logger = logging.getLogger(__name__)

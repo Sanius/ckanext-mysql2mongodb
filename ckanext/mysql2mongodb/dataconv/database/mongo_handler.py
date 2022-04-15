@@ -26,7 +26,7 @@ from pymongo.database import Database
 
 from ckanext.mysql2mongodb.dataconv.database.abstract_database_handler import AbstractDatabaseHandler
 
-from ckanext.mysql2mongodb.dataconv.settings import MONGO_HOST, MONGO_PORT, MONGO_USERNAME, MONGO_PASSWORD, \
+from ckanext.mysql2mongodb.settings import MONGO_HOST, MONGO_PORT, MONGO_USERNAME, MONGO_PASSWORD, \
     MONGO_TOOL_ENV_VAR_PATH
 
 logger = logging.getLogger(__name__)

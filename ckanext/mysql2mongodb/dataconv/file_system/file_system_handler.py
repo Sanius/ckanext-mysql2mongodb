@@ -8,7 +8,7 @@ import requests
 from ckanext.mysql2mongodb.dataconv.exceptions import TempDirNotCreatedError, UnavailableResourceError, \
     UploadResourceError
 
-from ckanext.mysql2mongodb.dataconv.settings import CKAN_API_KEY, CKAN_PROTOCOL, CKAN_HOST, CKAN_PORT
+from ckanext.mysql2mongodb.settings import CKAN_API_KEY, CKAN_PROTOCOL, CKAN_HOST, CKAN_PORT
 
 from ckanext.mysql2mongodb.dataconv.constant.consts import LOCAL_CKAN_DOWNLOAD_DIR, LOCAL_SCHEMA_CRAWLER_CACHE_DIR, \
     LOCAL_DATACONV_CACHE, LOCAL_MONGO_DUMP_CACHE_DIR, GZIP_FILE_EXTENSION

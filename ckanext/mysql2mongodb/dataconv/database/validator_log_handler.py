@@ -1,6 +1,6 @@
 from typing import Any
 
-from ckanext.mysql2mongodb.dataconv.settings import POSTGRESQL_LOG_HOST, POSTGRESQL_LOG_USER, POSTGRESQL_LOG_PASSWORD, \
+from ckanext.mysql2mongodb.settings import POSTGRESQL_LOG_HOST, POSTGRESQL_LOG_USER, POSTGRESQL_LOG_PASSWORD, \
     POSTGRESQL_LOG_PORT
 
 from ckanext.mysql2mongodb.dataconv.database.abstract_database_handler import AbstractDatabaseHandler
