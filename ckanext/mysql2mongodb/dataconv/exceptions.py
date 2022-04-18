@@ -18,6 +18,14 @@ class UploadResourceError(Exception):
     pass
 
 
+class MySQLTableNotFoundError(Exception):
+    pass
+
+
+class ValidationFlowIncompleteError(Exception):
+    pass
+
+
 class UnsupportedDatabaseException(Exception):
     pass
 
@@ -34,5 +42,13 @@ class MySQLDatabaseNotFoundException(Exception):
     pass
 
 
+class MongoDatabaseNotFoundException(Exception):
+    pass
+
+
 class MongoCollectionNotFoundException(Exception):
+    pass
+
+
+class LogDataInsufficiencyException(Exception):
     pass

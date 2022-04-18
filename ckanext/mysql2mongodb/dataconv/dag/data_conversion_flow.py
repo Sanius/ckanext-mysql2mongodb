@@ -34,6 +34,11 @@ def _task_convert_data(**kwargs):
     mysql2mongo_convert_data(input_file_info['sql_file_name'])
 
 
+# def _task_validate_data(**kwargs):
+#     input_file_info = kwargs['ti'].xcom_pull(task_ids='prepare_task', key='input_file_info')
+#     mysql2mongo_validate_data(input_file_info['sql_file_name'])
+
+
 def _task_dump_data(**kwargs):
     input_file_info = kwargs['ti'].xcom_pull(task_ids='prepare_task', key='input_file_info')
     mysql2mongo_dump_data(input_file_info['resource_id'], input_file_info['sql_file_name'])

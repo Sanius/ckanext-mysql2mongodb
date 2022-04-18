@@ -1,5 +1,14 @@
 # DATACONV
 
+## Migration
+- Go to main project directory
+  ```bash
+  cd ./ckanext/mysql2mongodb
+  ```
+- Run `alembic` command line
+  ```bash
+  alembic upgrade heads
+  ```
 ## Add new lib
 - Uninstall `ckanext-mysql2mongodb`
   ```bash
