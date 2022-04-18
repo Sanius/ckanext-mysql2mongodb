@@ -20,7 +20,7 @@ from ckanext.mysql2mongodb.dataconv.constant.error_codes import MONGO_DATABASE_C
     MONGO_STORE_DATA_TO_COLLECTION_ERROR, MONGO_COLLECTION_NOT_FOUND_ERROR, \
     MONGO_EXTRACT_COLUMN_DATATYPE_ERROR, MONGO_DUMP_DATA_ERROR, MONGO_DATABASE_NOT_FOUND_ERROR, \
     MONGO_UNSPECIFIED_DATABASE_ERROR, MONGO_UNABLE_TO_CREATE_PANDAS_DATAFRAME_ERROR, \
-    MONGO_UNABLE_TO_GET_TABLE_PRIMARY_KEY_ERROR
+    MONGO_UNABLE_TO_GET_TABLE_PRIMARY_KEY_ERROR, MONGO_UNABLE_TO_COUNT_TABLE_ERROR
 from pymongo import MongoClient
 from pymongo.database import Database
 
@@ -118,17 +118,29 @@ class MongoHandler(AbstractDatabaseHandler):
             logger.error(f'error code: {MONGO_UNABLE_TO_GET_TABLE_PRIMARY_KEY_ERROR}')
             raise ex
 
-    def to_pandas_dataframe(self, db_name: str, collection_name: str, index_cols: List) -> pd.DataFrame:
+    def to_pandas_dataframe(self, db_name: str, collection_name: str, index_cols: List, query: Dict = {}) -> pd.DataFrame:
         try:
             if not self._does_collection_exists(db_name, collection_name):
                 logger.error(f'error code: {MONGO_COLLECTION_NOT_FOUND_ERROR}')
                 raise MongoCollectionNotFoundException(f'collection {MONGO_SCHEMA_COLLECTION} not found')
             db = self._get_db_connection(db_name)
-            df = pd.DataFrame(db[collection_name].find())
+            df = pd.DataFrame(db[collection_name].find(query))
             return df if not index_cols else df.set_index(index_cols)
         except Exception as ex:
             logger.error(f'error code: {MONGO_UNABLE_TO_CREATE_PANDAS_DATAFRAME_ERROR}')
             raise ex
+
+    def count_table(self, db_name: str, collection_name: str) -> int:
+        try:
+            if not self._does_collection_exists(db_name, collection_name):
+                logger.error(f'error code: {MONGO_COLLECTION_NOT_FOUND_ERROR}')
+                raise MongoCollectionNotFoundException(f'collection {MONGO_SCHEMA_COLLECTION} not found')
+            db = self._get_db_connection(db_name)
+            return db[collection_name].count_documents({})
+        except Exception as ex:
+            logger.error(f'error code: {MONGO_UNABLE_TO_COUNT_TABLE_ERROR}')
+            raise ex
+
     # endregion
 
     # region Schema crawler methods
@@ -181,7 +193,7 @@ class MongoHandler(AbstractDatabaseHandler):
 
         def get_tables_primary_keys() -> Set[str]:
             """
-            { column_uuid: primary_key }
+            { column_uuid }
             """
             all_tables = self._get_schema_collection_real_tables(db_name, 'indexes')
             result = set()
@@ -312,7 +324,7 @@ class MongoHandler(AbstractDatabaseHandler):
     # region Component methods
     def _does_collection_exists(self, db_name: str, collection_name: str) -> bool:
         db = self._get_db_connection(db_name)
-        return False if not collection_name else db[collection_name].count_documents({'_id': {'$exists': True}}) == 1
+        return False if not collection_name else collection_name in db.list_collection_names()
 
     def _drop_db_if_exists(self, db_name: str):
         try:

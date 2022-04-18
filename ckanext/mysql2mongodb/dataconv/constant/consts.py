@@ -1,22 +1,36 @@
 # External file extension
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Callable
 
+# region File extension
 SQL_FILE_EXTENSION = 'sql'
 JSON_FILE_EXTENSION = 'json'
 GZIP_FILE_EXTENSION = 'gz'
-# Local cache
+CSV_FILE_EXTENSION = 'csv'
+# endregion
+
+# region Local cache
 LOCAL_DATACONV_CACHE = '.dataconv_cache'
 LOCAL_CKAN_DOWNLOAD_DIR = f'{LOCAL_DATACONV_CACHE}/ckan_downloads'
 LOCAL_SCHEMA_CRAWLER_CACHE_DIR = f'{LOCAL_DATACONV_CACHE}/schema_crawler_cache'
 LOCAL_MONGO_DUMP_CACHE_DIR = f'{LOCAL_DATACONV_CACHE}/mongodump'
-# DATABASE
+LOCAL_VALIDATOR_LOG_REPORT_DIR = f'{LOCAL_DATACONV_CACHE}/validator_report'
+# endregion
+
+# region DATABASE brand
 MONGO = 'mongo'
 MYSQL = 'mysql'
-# Command line
+# endregion
+
+# region Command line
 SCHEMA_CRAWLER = 'schemacrawler.sh'
 MONGO_DUMP = 'mongodump'
-# Mongo
+# endregion
+
+# region MISC
+DATABASE_CHUNK_SIZE = 500
+TIME_FORMAT = '%H:%M:%S'
 MONGO_SCHEMA_COLLECTION = '_schema'
+# endregion
 
 # region Mysql mongo mapping
 MONGO_INTEGER_DATATYPE = 'integer'
@@ -65,5 +79,17 @@ MYSQL_MONGO_MAP: Dict[str, str] = {
 }
 # endregion
 
-DATABASE_CHUNK_SIZE = 100
-TIME_FORMAT = '%H:%M:%S'
+# region Validator error description
+ROWS_NOT_MATCH = 'Total row from mysql and mongodb don\'t match'
+INCORRECT_VALUE: Callable[[int], str] = lambda incorrect_value_num: f'There are {incorrect_value_num} incorrect values'\
+    if incorrect_value_num > 1 else f'There is {incorrect_value_num} incorrect value'
+# endregion
+
+# region Validator type
+NORMAL = 'NORMAL'
+DICT = 'DICT'
+SET = 'SET'
+GEOMETRY = 'GEOMETRY'
+DECIMAL = 'DECIMAL'
+DATE = 'DATE'
+# endregion

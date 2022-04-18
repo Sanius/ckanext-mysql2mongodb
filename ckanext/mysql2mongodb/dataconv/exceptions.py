@@ -22,6 +22,10 @@ class MySQLTableNotFoundError(Exception):
     pass
 
 
+class ValidationFlowIncompleteError(Exception):
+    pass
+
+
 class UnsupportedDatabaseException(Exception):
     pass
 
@@ -43,4 +47,8 @@ class MongoDatabaseNotFoundException(Exception):
 
 
 class MongoCollectionNotFoundException(Exception):
+    pass
+
+
+class LogDataInsufficiencyException(Exception):
     pass

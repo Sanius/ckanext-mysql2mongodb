@@ -3,9 +3,8 @@ import subprocess
 from typing import Generator, List
 import pandas as pd
 
-from sqlalchemy import MetaData, create_engine, select, inspect
-from sqlalchemy.engine import Connection as SQLalchemyConnection
-from sqlalchemy.testing.schema import Table
+from sqlalchemy import MetaData, create_engine, select, inspect, func, Table
+from sqlalchemy.engine import Engine
 
 from ckanext.mysql2mongodb.dataconv.constant.consts import MYSQL, SCHEMA_CRAWLER, JSON_FILE_EXTENSION, MYSQL_MONGO_MAP, \
     MONGO_SINGLE_GEOMETRY_DATATYPE, DATABASE_CHUNK_SIZE
@@ -18,7 +17,8 @@ from ckanext.mysql2mongodb.dataconv.exceptions import DatabaseConnectionError, \
 from ckanext.mysql2mongodb.dataconv.constant.error_codes import MYSQL_DATABASE_CONNECTION_ERROR, \
     MYSQL_EXPORT_SCHEMA_ERROR, MYSQL_RESTORE_DATA_ERROR, \
     MYSQL_FETCH_DATA_TO_MONGO_ERROR, MYSQL_CREATE_DATABASE_ERROR, MYSQL_DATABASE_NOT_FOUND_ERROR, \
-    MYSQL_UNSPECIFIED_DATABASE_ERROR, MYSQL_TABLE_NOT_FOUND_ERROR, MYSQL_UNABLE_TO_CREATE_PANDAS_DATAFRAME_ERROR
+    MYSQL_UNSPECIFIED_DATABASE_ERROR, MYSQL_TABLE_NOT_FOUND_ERROR, MYSQL_UNABLE_TO_CREATE_PANDAS_DATAFRAME_ERROR, \
+    MYSQL_UNABLE_TO_COUNT_TABLE_ERROR
 from mysql import connector as mysql_connector
 from ckanext.mysql2mongodb.dataconv.database.abstract_database_handler import AbstractDatabaseHandler
 
@@ -107,19 +107,34 @@ class MySQLHandler(AbstractDatabaseHandler):
         finally:
             conn.close()
 
-    def to_pandas_dataframe(self, db_name: str, table_name: str, index_cols: List) -> pd.DataFrame:
+    def to_pandas_dataframe(self, db_name: str, table_name: str, index_cols: List, chunksize: int = None) -> pd.DataFrame:
         try:
-            db_conn = self._get_db_connection_by_engine(db_name)
+            engine = self._get_db_engine(db_name)
             if not self._does_table_exists(db_name, table_name):
                 logger.error(f'error code: {MYSQL_TABLE_NOT_FOUND_ERROR}')
                 raise MySQLTableNotFoundError(f'Mysql table {table_name} not found')
-            target_table = Table(table_name, self._metadata, autoload_with=db_conn)
+            target_table = Table(table_name, self._metadata, autoload_with=engine)
             if not index_cols:
                 index_cols = None
-            return pd.read_sql(select([target_table]), con=db_conn, index_col=index_cols)
+            return pd.read_sql(select([target_table]), con=engine, index_col=index_cols, chunksize=chunksize)
         except Exception as ex:
             logger.error(f'error code: {MYSQL_UNABLE_TO_CREATE_PANDAS_DATAFRAME_ERROR}')
             raise ex
+
+    def count_table(self, db_name: str, table_name: str) -> int:
+        try:
+            engine = self._get_db_engine(db_name)
+            if not self._does_table_exists(db_name, table_name):
+                logger.error(f'error code: {MYSQL_TABLE_NOT_FOUND_ERROR}')
+                raise MySQLTableNotFoundError(f'Mysql table {table_name} not found')
+            target_table = Table(table_name, self._metadata, autoload_with=engine)
+            with engine.connect() as conn:
+                result = conn.execute(select([func.count()]).select_from(target_table)).fetchone()
+            return result[0]
+        except Exception as ex:
+            logger.error(f'error code: {MYSQL_UNABLE_TO_COUNT_TABLE_ERROR}')
+            raise ex
+
     # endregion
 
     # region Component methods
@@ -187,8 +202,8 @@ class MySQLHandler(AbstractDatabaseHandler):
         subprocess.run([command_line_str], check=True, shell=True)
 
     def _does_table_exists(self, db_name: str, table_name: str) -> bool:
-        db_conn = self._get_db_connection_by_engine(db_name)
-        return False if not table_name else inspect(db_conn).has_table(table_name)
+        engine = self._get_db_engine(db_name)
+        return False if not table_name else table_name in inspect(engine).get_table_names()
 
     def _drop_db_if_exists(self, db_name: str):
         conn = self._get_open_connection()
@@ -202,7 +217,7 @@ class MySQLHandler(AbstractDatabaseHandler):
         finally:
             conn.close()
 
-    def _get_db_connection_by_engine(self, db_name: str) -> SQLalchemyConnection:
+    def _get_db_engine(self, db_name: str) -> Engine:
         try:
             if not db_name or not self._does_db_exist(db_name):
                 logger.error(f'error code: {MYSQL_DATABASE_NOT_FOUND_ERROR}')
@@ -210,15 +225,13 @@ class MySQLHandler(AbstractDatabaseHandler):
 
             connection_info = 'mysql+pymysql://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_db}' \
                 .format(
-                    mysql_host=self._host,
+                    mysql_host='localhost',
                     mysql_port=self._port,
                     mysql_user=self._username,
                     mysql_password=self._password,
                     mysql_db=db_name
                 )
-
-            engine = create_engine(connection_info)
-            return engine.connect()
+            return create_engine(connection_info)
         except Exception as ex:
             logger.error(f'error code: {MYSQL_DATABASE_CONNECTION_ERROR}')
             raise ex

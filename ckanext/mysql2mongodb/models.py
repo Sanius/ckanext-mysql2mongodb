@@ -16,3 +16,19 @@ class ValidatorLogger(Base):
     table = Column(postgresql.VARCHAR(250), nullable=False)
     description = Column(postgresql.TEXT)
     created_time = Column(postgresql.TIMESTAMP, default=datetime.utcnow)
+
+    def __repr__(self):
+        return '''
+        log_id = {log_id}
+        resource_id = {resource_id}
+        package_id = {package_id}
+        database = {database}
+        table = {table}
+        created_time = {created_time}
+        '''.format(log_id=self.log_id,
+                   resource_id=self.resource_id,
+                   package_id=self.package_id,
+                   database=self.database,
+                   table=self.table,
+                   created_time=self.created_time,
+                   )
