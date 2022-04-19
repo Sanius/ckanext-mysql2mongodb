@@ -12,7 +12,7 @@ from ckanext.mysql2mongodb.settings import CKAN_API_KEY, CKAN_PROTOCOL, CKAN_HOS
 
 from ckanext.mysql2mongodb.dataconv.constant.consts import LOCAL_CKAN_DOWNLOAD_DIR, LOCAL_SCHEMA_CRAWLER_CACHE_DIR, \
     LOCAL_DATACONV_CACHE, LOCAL_MONGO_DUMP_CACHE_DIR, GZIP_FILE_EXTENSION, LOCAL_VALIDATOR_LOG_REPORT_DIR, \
-    CSV_FILE_EXTENSION
+    CSV_FILE_EXTENSION, XLSX_FILE_EXTENSION
 
 from ckanext.mysql2mongodb.dataconv.constant.error_codes import CREATE_TEMP_DIR_ERROR, \
     DOWNLOAD_CKAN_RESOURCE_ERROR, UPLOAD_RESOURCE_TO_CKAN_ERROR
@@ -21,19 +21,9 @@ logger = logging.getLogger(__name__)
 
 
 # region Task procedures
-def get_ckan_download_cache_path(resource_id: str) -> str:
+def get_dataconv_cache_dir_path(dataconv_dir_path: str, resource_id: str) -> str:
     current_location = _get_current_location_absolute_path()
-    return f'{current_location}/{LOCAL_CKAN_DOWNLOAD_DIR}/{resource_id}'
-
-
-def get_mongo_dump_cache_path(resource_id: str) -> str:
-    current_location = _get_current_location_absolute_path()
-    return f'{current_location}/{LOCAL_MONGO_DUMP_CACHE_DIR}/{resource_id}'
-
-
-def get_validator_report_path(resource_id: str) -> str:
-    current_location = _get_current_location_absolute_path()
-    return f'{current_location}/{LOCAL_VALIDATOR_LOG_REPORT_DIR}/{resource_id}'
+    return f'{current_location}/{dataconv_dir_path}/{resource_id}'
 
 
 def upload_mongo_dump_data_to_ckan(resource_id: str, sql_file_name: str, package_id: str):
@@ -59,7 +49,7 @@ def upload_validator_report_to_ckan(resource_id: str, package_id: str):
     try:
         current_location = _get_current_location_absolute_path()
         file_name = f'{package_id}.{CSV_FILE_EXTENSION}'
-        file_path = f'{current_location}/{LOCAL_VALIDATOR_LOG_REPORT_DIR}/{resource_id}/{package_id}.{CSV_FILE_EXTENSION}'
+        file_path = f'{current_location}/{LOCAL_VALIDATOR_LOG_REPORT_DIR}/{resource_id}/{package_id}.{XLSX_FILE_EXTENSION}'
         response = requests.post(f'{CKAN_PROTOCOL}://{CKAN_HOST}:{CKAN_PORT}/api/action/resource_create',
                                  data={'package_id': package_id,
                                        'name': file_name},
@@ -88,28 +78,14 @@ def download_mysql_file_from_ckan(sql_file_url: str, resource_id: str, sql_file_
     except Exception as ex:
         logger.error(f'error code: {DOWNLOAD_CKAN_RESOURCE_ERROR}')
         raise ex
+
+
+def create_dataconv_cache_dir(dataconv_dir_path: str, resource_id: str) -> str:
+    current_location = _get_current_location_absolute_path()
+    dataconv_cache_path = f'{current_location}/{dataconv_dir_path}/{resource_id}'
+    _create_temp_dir(dataconv_cache_path)
+    return dataconv_cache_path
 # endregion
-
-
-def create_schema_crawler_cache_dir(resource_id: str) -> str:
-    current_location = _get_current_location_absolute_path()
-    schema_crawler_cache_path = f'{current_location}/{LOCAL_SCHEMA_CRAWLER_CACHE_DIR}/{resource_id}'
-    _create_temp_dir(schema_crawler_cache_path)
-    return schema_crawler_cache_path
-
-
-def create_mongo_dump_cache_dir(resource_id: str) -> str:
-    current_location = _get_current_location_absolute_path()
-    mongo_dump_cache_path = f'{current_location}/{LOCAL_MONGO_DUMP_CACHE_DIR}/{resource_id}'
-    _create_temp_dir(mongo_dump_cache_path)
-    return mongo_dump_cache_path
-
-
-def create_validator_log_report_dir(resource_id: str) -> str:
-    current_location = _get_current_location_absolute_path()
-    validator_report_path = f'{current_location}/{LOCAL_VALIDATOR_LOG_REPORT_DIR}/{resource_id}'
-    _create_temp_dir(validator_report_path)
-    return validator_report_path
 
 
 def clear_dataconv_cache():
