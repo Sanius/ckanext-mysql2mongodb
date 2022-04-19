@@ -9,6 +9,9 @@ from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import convert_schema as my
 from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import convert_data as mysql2mongo_convert_data
 from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import dump_data as mysql2mongo_dump_data
 from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import upload_converted_data as mysql2mongo_upload_data
+from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import validate_data as mysql2mongo_validate_data
+from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import export_validator_report \
+    as mysql2mongo_export_report
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +37,17 @@ def _task_convert_data(**kwargs):
     mysql2mongo_convert_data(input_file_info['sql_file_name'])
 
 
-# def _task_validate_data(**kwargs):
-#     input_file_info = kwargs['ti'].xcom_pull(task_ids='prepare_task', key='input_file_info')
-#     mysql2mongo_validate_data(input_file_info['sql_file_name'])
+def _task_validate_data(**kwargs):
+    input_file_info = kwargs['ti'].xcom_pull(task_ids='prepare_task', key='input_file_info')
+    mysql2mongo_validate_data(sql_file_name=input_file_info['sql_file_name'],
+                              resource_id=input_file_info['resource_id'],
+                              package_id=input_file_info['package_id'])
+
+
+def _task_export_validator_report(**kwargs):
+    input_file_info = kwargs['ti'].xcom_pull(task_ids='prepare_task', key='input_file_info')
+    mysql2mongo_export_report(resource_id=input_file_info['resource_id'],
+                              package_id=input_file_info['package_id'])
 
 
 def _task_dump_data(**kwargs):
@@ -71,12 +82,22 @@ task3 = PythonOperator(task_id='data_convert_task',
                        op_kwargs={},
                        provide_context=True,
                        dag=dag)
-task4 = PythonOperator(task_id='converted_data_dump_task',
+task4 = PythonOperator(task_id='result_validation_task',
+                       python_callable=_task_validate_data,
+                       op_kwargs={},
+                       provide_context=True,
+                       dag=dag)
+task5 = PythonOperator(task_id='data_dumping_task',
                        python_callable=_task_dump_data,
                        op_kwargs={},
                        provide_context=True,
                        dag=dag)
-task5 = PythonOperator(task_id='upload_result_task',
+task6 = PythonOperator(task_id='validation_result_export_task',
+                       python_callable=_task_export_validator_report,
+                       op_kwargs={},
+                       provide_context=True,
+                       dag=dag)
+task7 = PythonOperator(task_id='upload_result_task',
                        python_callable=_task_upload_result,
                        op_kwargs={},
                        provide_context=True,
@@ -86,3 +107,5 @@ task2.set_upstream(task1)
 task3.set_upstream(task2)
 task4.set_upstream(task3)
 task5.set_upstream(task4)
+task6.set_upstream(task5)
+task7.set_upstream(task6)

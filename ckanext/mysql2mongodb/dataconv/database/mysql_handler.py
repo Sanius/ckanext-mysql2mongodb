@@ -7,7 +7,7 @@ from sqlalchemy import MetaData, create_engine, select, inspect, func, Table
 from sqlalchemy.engine import Engine
 
 from ckanext.mysql2mongodb.dataconv.constant.consts import MYSQL, SCHEMA_CRAWLER, JSON_FILE_EXTENSION, MYSQL_MONGO_MAP, \
-    MONGO_SINGLE_GEOMETRY_DATATYPE, DATABASE_CHUNK_SIZE
+    MONGO_SINGLE_GEOMETRY_DATATYPE, DATABASE_CHUNK_SIZE, LOCAL_CKAN_DOWNLOAD_DIR, LOCAL_SCHEMA_CRAWLER_CACHE_DIR
 
 from ckanext.mysql2mongodb.dataconv.file_system import file_system_handler
 
@@ -48,7 +48,7 @@ class MySQLHandler(AbstractDatabaseHandler):
             self._drop_db_if_exists(db_name)
             self._create_db(db_name)
             # Get file path
-            file_path = f'{file_system_handler.get_ckan_download_cache_path(resource_id)}/{file_name}'
+            file_path = f'{file_system_handler.get_dataconv_cache_dir_path(LOCAL_CKAN_DOWNLOAD_DIR, resource_id)}/{file_name}'
             self._restore(db_name, file_path)
             logger.info(f'Restore MySQL database successfully')
         except Exception as ex:
@@ -65,7 +65,7 @@ class MySQLHandler(AbstractDatabaseHandler):
                 logger.error(f'error code: {MYSQL_DATABASE_NOT_FOUND_ERROR}')
                 raise MySQLDatabaseNotFoundException('Database not found')
 
-            schema_crawler_cache_dir = file_system_handler.create_schema_crawler_cache_dir(resource_id)
+            schema_crawler_cache_dir = file_system_handler.create_dataconv_cache_dir(LOCAL_SCHEMA_CRAWLER_CACHE_DIR, resource_id)
             file_path = f'{schema_crawler_cache_dir}/{db_name}.{JSON_FILE_EXTENSION}'
             self._generate_schema_file(db_name, file_path)
             logger.info(f'Generate MySQL database {db_name} schema successfully!')
@@ -139,19 +139,17 @@ class MySQLHandler(AbstractDatabaseHandler):
 
     # region Component methods
     def _create_db(self, db_name: str):
-        conn = self._get_open_connection()
         try:
             if not db_name:
                 logger.error(f'error code: {MYSQL_UNSPECIFIED_DATABASE_ERROR}')
                 raise UnspecifiedDatabaseException('Database name is incorrect')
-            with conn.cursor() as db_cursor:
-                db_cursor.execute(f'CREATE DATABASE IF NOT EXISTS {db_name};')
-                conn.commit()
+            with self._get_open_connection() as conn:
+                with conn.cursor() as db_cursor:
+                    db_cursor.execute(f'CREATE DATABASE IF NOT EXISTS {db_name};')
+                    conn.commit()
         except Exception as ex:
             logger.error(f'error code: {MYSQL_CREATE_DATABASE_ERROR}')
             raise ex
-        finally:
-            conn.close()
 
     def _restore(self, db_name: str, file_path: str):
         if not db_name or not self._does_db_exist(db_name):
@@ -206,16 +204,14 @@ class MySQLHandler(AbstractDatabaseHandler):
         return False if not table_name else table_name in inspect(engine).get_table_names()
 
     def _drop_db_if_exists(self, db_name: str):
-        conn = self._get_open_connection()
         try:
-            with conn.cursor() as db_cursor:
-                db_cursor.execute(f'DROP DATABASE IF EXISTS {db_name};')
-                conn.commit()
+            with self._get_open_connection() as conn:
+                with conn.cursor() as db_cursor:
+                    db_cursor.execute(f'DROP DATABASE IF EXISTS {db_name};')
+                    conn.commit()
         except Exception as ex:
             logger.error(f'error code: {MYSQL_CREATE_DATABASE_ERROR}')
             raise ex
-        finally:
-            conn.close()
 
     def _get_db_engine(self, db_name: str) -> Engine:
         try:
@@ -262,11 +258,10 @@ class MySQLHandler(AbstractDatabaseHandler):
     def _does_db_exist(self, db_name: str) -> bool:
         exists = False
         if db_name:
-            conn = self._get_open_connection()
-            with conn.cursor() as cur:
-                cur.execute('SHOW DATABASES;')
-                exists = db_name in set(db[0] for db in cur.fetchall())
-            conn.close()
+            with self._get_open_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute('SHOW DATABASES;')
+                    exists = db_name in set(db[0] for db in cur.fetchall())
         return exists
 
     # Override

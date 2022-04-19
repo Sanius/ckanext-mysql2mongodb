@@ -6,6 +6,7 @@ SQL_FILE_EXTENSION = 'sql'
 JSON_FILE_EXTENSION = 'json'
 GZIP_FILE_EXTENSION = 'gz'
 CSV_FILE_EXTENSION = 'csv'
+XLSX_FILE_EXTENSION = 'xlsx'
 # endregion
 
 # region Local cache
@@ -92,4 +93,8 @@ SET = 'SET'
 GEOMETRY = 'GEOMETRY'
 DECIMAL = 'DECIMAL'
 DATE = 'DATE'
+# endregion
+
+# region Redis key
+VALIDATOR_FALSE_INDEXES = 'validator_false_indexes'
 # endregion

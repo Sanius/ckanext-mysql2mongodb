@@ -8,7 +8,7 @@ from typing import List, Dict, Union, Set
 import pandas as pd
 
 from ckanext.mysql2mongodb.dataconv.constant.consts import JSON_FILE_EXTENSION, MONGO_SCHEMA_COLLECTION, \
-    MONGO_DUMP, GZIP_FILE_EXTENSION
+    MONGO_DUMP, GZIP_FILE_EXTENSION, LOCAL_MONGO_DUMP_CACHE_DIR, LOCAL_SCHEMA_CRAWLER_CACHE_DIR
 
 from ckanext.mysql2mongodb.dataconv.file_system import file_system_handler
 
@@ -45,7 +45,7 @@ class MongoHandler(AbstractDatabaseHandler):
     def import_mysql_schema_json(self, resource_id: str, file_name: str):
         try:
             # region Get file path and file name
-            schema_crawler_cache_dir = file_system_handler.create_schema_crawler_cache_dir(resource_id)
+            schema_crawler_cache_dir = file_system_handler.create_dataconv_cache_dir(LOCAL_SCHEMA_CRAWLER_CACHE_DIR, resource_id)
             db_name = file_name.split('.')[0]
             file_path = f'{schema_crawler_cache_dir}/{db_name}.{JSON_FILE_EXTENSION}'
             # endregion
@@ -64,8 +64,8 @@ class MongoHandler(AbstractDatabaseHandler):
     def dump_database(self, resource_id: str, sql_file_name: str):
         try:
             db_name = sql_file_name.split('.')[0]
-            file_system_handler.create_mongo_dump_cache_dir(resource_id)
-            mongo_dump_data_dir = file_system_handler.get_mongo_dump_cache_path(resource_id)
+            file_system_handler.create_dataconv_cache_dir(LOCAL_MONGO_DUMP_CACHE_DIR, resource_id)
+            mongo_dump_data_dir = file_system_handler.get_dataconv_cache_dir_path(LOCAL_MONGO_DUMP_CACHE_DIR, resource_id)
             self._dump_database(db_name, mongo_dump_data_dir)
             logger.info('Dump data successfully!')
         except Exception as ex:

@@ -5,7 +5,7 @@ import json
 import bson
 from shapely import wkt
 
-from ckanext.mysql2mongodb.dataconv.constant.consts import ROWS_NOT_MATCH, INCORRECT_VALUE, DICT, SET, GEOMETRY, \
+from ckanext.mysql2mongodb.dataconv.constant.consts import ROWS_NOT_MATCH, DICT, SET, GEOMETRY, \
     DECIMAL, DATE, NORMAL
 from ckanext.mysql2mongodb.dataconv.database import MySQLHandler, MongoHandler
 from ckanext.mysql2mongodb.dataconv.exceptions import ValidationFlowIncompleteError
@@ -29,8 +29,6 @@ def find_false_indexes(mysql_df: pd.DataFrame, mongo_df: pd.DataFrame):
             if not val:
                 false_indexes = np.append(false_indexes, mysql_df.iloc[idx].name)
     return false_indexes
-    # if false_indexes.size != 0:
-    #     raise ValidationFlowIncompleteError(INCORRECT_VALUE(false_indexes.size))
 
 
 def _validate_coreset_transformed_mysql_mongodb(mysql_col: pd.Series, mongo_col: pd.Series) -> np.array:

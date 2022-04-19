@@ -1,14 +1,15 @@
 import logging
-import time
 import uuid
 from typing import Dict, List
 
 import pandas as pd
-from sqlalchemy import create_engine, select, and_
+from sqlalchemy import create_engine, and_
 from sqlalchemy.orm import sessionmaker
 
-from ckanext.mysql2mongodb.dataconv.constant.consts import CSV_FILE_EXTENSION
+from ckanext.mysql2mongodb.dataconv.constant.consts import CSV_FILE_EXTENSION, LOCAL_VALIDATOR_LOG_REPORT_DIR, \
+    XLSX_FILE_EXTENSION
 from ckanext.mysql2mongodb.dataconv.constant.error_codes import VALIDATOR_LOG_INSERT_ERROR, VALIDATOR_LOG_EXPORT_ERROR
+from ckanext.mysql2mongodb.dataconv.database.singleton import SingletonMetaCls
 from ckanext.mysql2mongodb.dataconv.exceptions import LogDataInsufficiencyException
 from ckanext.mysql2mongodb.dataconv.file_system import file_system_handler
 from ckanext.mysql2mongodb.models import ValidatorLogger
@@ -18,7 +19,7 @@ from ckanext.mysql2mongodb.settings import POSTGRESQL_LOG_HOST, POSTGRESQL_LOG_U
 logger = logging.Logger(__name__)
 
 
-class ValidatorLogHandler:
+class ValidatorLogHandler(metaclass=SingletonMetaCls):
     def __init__(self):
         self._engine = create_engine(
             'postgresql+psycopg2://{postgresql_user}:{postgresql_password}@{postgresql_host}:{postgresql_port}/{postgresql_database}'
@@ -62,9 +63,24 @@ class ValidatorLogHandler:
                 'resource_id': [resource_id]
             }
             df = self._select_by_packageid_resourceid(query)
-            file_system_handler.create_validator_log_report_dir(resource_id)
-            file_path = f'{file_system_handler.get_validator_report_path(resource_id)}/{package_id}.{CSV_FILE_EXTENSION}'
+            file_system_handler.create_dataconv_cache_dir(LOCAL_VALIDATOR_LOG_REPORT_DIR, resource_id)
+            file_path = f'{file_system_handler.get_dataconv_cache_dir_path(LOCAL_VALIDATOR_LOG_REPORT_DIR, resource_id)}/{package_id}.{CSV_FILE_EXTENSION} '
             df.to_csv(file_path)
+            logger.info('Validator report exported')
+        except Exception as ex:
+            logger.error(f'error code: {VALIDATOR_LOG_EXPORT_ERROR}')
+            raise ex
+
+    def export_validator_log_xlsx(self, resource_id: str, package_id: str):
+        try:
+            query = {
+                'package_id': [package_id],
+                'resource_id': [resource_id]
+            }
+            df = self._select_by_packageid_resourceid(query)
+            file_system_handler.create_dataconv_cache_dir(LOCAL_VALIDATOR_LOG_REPORT_DIR, resource_id)
+            file_path = f'{file_system_handler.get_dataconv_cache_dir_path(LOCAL_VALIDATOR_LOG_REPORT_DIR, resource_id)}/{package_id}.{XLSX_FILE_EXTENSION}'
+            df.to_excel(file_path)
             logger.info('Validator report exported')
         except Exception as ex:
             logger.error(f'error code: {VALIDATOR_LOG_EXPORT_ERROR}')
