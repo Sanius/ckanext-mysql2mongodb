@@ -8,7 +8,8 @@ from typing import List, Dict, Union, Set
 import pandas as pd
 
 from ckanext.mysql2mongodb.dataconv.constant.consts import JSON_FILE_EXTENSION, MONGO_SCHEMA_COLLECTION, \
-    MONGO_DUMP, GZIP_FILE_EXTENSION, LOCAL_MONGO_DUMP_CACHE_DIR, LOCAL_SCHEMA_CRAWLER_CACHE_DIR
+    MONGO_DUMP, GZIP_FILE_EXTENSION, LOCAL_MONGO_DUMP_CACHE_DIR, LOCAL_SCHEMA_CRAWLER_CACHE_DIR, REDIS_SCHEMA_DATAFRAME
+from ckanext.mysql2mongodb.dataconv.database.cache_handler import CacheHandler
 
 from ckanext.mysql2mongodb.dataconv.file_system import file_system_handler
 
@@ -205,6 +206,9 @@ class MongoHandler(AbstractDatabaseHandler):
                         result = {*result, *index['columns']}
             return result
 
+        cache_handler = CacheHandler()
+        if cache_handler.is_dataframe_saved(REDIS_SCHEMA_DATAFRAME):
+            return cache_handler.get_dataframe(REDIS_SCHEMA_DATAFRAME)
         schema_list = []
         column_tablename = get_column_tablename()
         column_datatype = get_column_datatype()
@@ -218,7 +222,9 @@ class MongoHandler(AbstractDatabaseHandler):
                 'column_datatype': column_datatype.get(column_uuid),
                 'is_primary_key': column_uuid in tables_primary_keys
             })
-        return pd.DataFrame(schema_list).set_index(['column_uuid'])
+        df = pd.DataFrame(schema_list).set_index(['column_uuid'])
+        cache_handler.store_dataframe(REDIS_SCHEMA_DATAFRAME, df)
+        return df
 
     def _get_schema_collection_real_tables(self, db_name: str, *extended_keys) -> List:
         all_tables = self._get_schema_collection_tables_flattened(db_name, *extended_keys)

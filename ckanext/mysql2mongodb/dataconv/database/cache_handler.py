@@ -1,5 +1,7 @@
 from typing import List, Union
 import numpy as np
+import pandas as pd
+import pickle
 
 from redis import Redis, ConnectionPool
 
@@ -39,6 +41,22 @@ class CacheHandler(metaclass=SingletonMetaCls):
             return
         redis_client = self._get_db_connection()
         redis_client.delete(key)
+
+    def store_dataframe(self, key: str, value: pd.DataFrame):
+        if not key or value.empty:
+            return
+        client = Redis(connection_pool=self._pool, decode_responses=False)
+        client.set(key, pickle.dumps(value))
+
+    def get_dataframe(self, key: str) -> pd.DataFrame:
+        if not key:
+            return pd.DataFrame()
+        client = Redis(connection_pool=self._pool, decode_responses=False)
+        return pickle.loads(client.get(key))
+
+    def is_dataframe_saved(self, key: str) -> bool:
+        client = self._get_db_connection()
+        return False if not key else client.exists(key) == 1
 
     def _get_db_connection(self) -> Redis:
         return Redis(decode_responses=True, charset='utf-8', connection_pool=self._pool)

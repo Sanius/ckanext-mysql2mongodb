@@ -12,7 +12,7 @@ from ckanext.mysql2mongodb.dataconv.util.helper import from_pandas_index_to_dict
 from ckanext.mysql2mongodb.dataconv.validation import validator
 
 from ckanext.mysql2mongodb.dataconv.constant.consts import SQL_FILE_EXTENSION, DATABASE_CHUNK_SIZE, INCORRECT_VALUE, \
-    VALIDATOR_FALSE_INDEXES
+    REDIS_VALIDATOR_FALSE_INDEXES
 from ckanext.mysql2mongodb.dataconv.constant.error_codes import TASK_PREPARE_DATA_ERROR, INPUT_FILE_EXTENSION_ERROR, \
     TASK_CONVERT_SCHEMA_ERROR, TASK_CONVERT_DATA_ERROR, TASK_DUMP_DATA_ERROR, TASK_UPLOAD_DATA_ERROR, \
     TASK_VALIDATE_DATA_ERROR, TASK_EXPORT_VALIDATOR_REPORT_ERROR
@@ -108,8 +108,8 @@ def validate_data(resource_id: str, sql_file_name: str, package_id: str):
                     )
                     sub_mongo_df = mongo_handler.to_pandas_dataframe(db_name, table_name, table_primary_key_map[table_name], mongodb_query)
                     false_indexes = np.append(false_indexes, validator.find_false_indexes(sub_mysql_df, sub_mongo_df))
-                    cache_handler.append_list(VALIDATOR_FALSE_INDEXES, false_indexes)
-                if false_indexes_len := cache_handler.get_list_length(VALIDATOR_FALSE_INDEXES) != 0:
+                    cache_handler.append_list(REDIS_VALIDATOR_FALSE_INDEXES, false_indexes)
+                if false_indexes_len := cache_handler.get_list_length(REDIS_VALIDATOR_FALSE_INDEXES) != 0:
                     raise ValidationFlowIncompleteError(INCORRECT_VALUE(false_indexes_len))
                 logger.info(f'Validate database {db_name}, table {table_name} successfully')
             except ValidationFlowIncompleteError as ex:
@@ -122,7 +122,7 @@ def validate_data(resource_id: str, sql_file_name: str, package_id: str):
                     description=str(ex)
                 )
                 continue
-        cache_handler.delete_entity(VALIDATOR_FALSE_INDEXES)
+        cache_handler.delete_entity(REDIS_VALIDATOR_FALSE_INDEXES)
         logger.info('Task validate data success')
     except Exception as ex:
         logger.error(f'error code: {TASK_VALIDATE_DATA_ERROR}')

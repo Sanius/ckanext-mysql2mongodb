@@ -96,5 +96,6 @@ DATE = 'DATE'
 # endregion
 
 # region Redis key
-VALIDATOR_FALSE_INDEXES = 'validator_false_indexes'
+REDIS_VALIDATOR_FALSE_INDEXES = 'validator_false_indexes'
+REDIS_SCHEMA_DATAFRAME = 'schema_dataframe'
 # endregion
