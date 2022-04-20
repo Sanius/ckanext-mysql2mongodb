@@ -122,7 +122,7 @@ def validate_data(resource_id: str, sql_file_name: str, package_id: str):
                     description=str(ex)
                 )
                 continue
-        cache_handler.delete_entity(REDIS_VALIDATOR_FALSE_INDEXES)
+        cache_handler.clear_cache()
         logger.info('Task validate data success')
     except Exception as ex:
         logger.error(f'error code: {TASK_VALIDATE_DATA_ERROR}')

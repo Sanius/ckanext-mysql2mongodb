@@ -26,11 +26,11 @@ class CacheHandler(metaclass=SingletonMetaCls):
         for i in value:
             redis_client.lpush(key, i)
 
-    def get_list(self, key: str) -> List:
+    def get_list(self, key: str) -> np.array:
         if not key:
-            return []
+            return np.array([])
         redis_client = self._get_db_connection()
-        return redis_client.lrange(key, 0, -1)
+        return np.array(redis_client.lrange(key, 0, -1))
 
     def get_list_length(self, key: str) -> int:
         redis_client = self._get_db_connection()
@@ -42,21 +42,26 @@ class CacheHandler(metaclass=SingletonMetaCls):
         redis_client = self._get_db_connection()
         redis_client.delete(key)
 
+    def clear_cache(self):
+        redis_client = self._get_db_connection()
+        for key in redis_client.keys():
+            redis_client.delete(key)
+
     def store_dataframe(self, key: str, value: pd.DataFrame):
         if not key or value.empty:
             return
-        client = Redis(connection_pool=self._pool, decode_responses=False)
-        client.set(key, pickle.dumps(value))
+        redis_client = Redis(connection_pool=self._pool, decode_responses=False)
+        redis_client.set(key, pickle.dumps(value))
 
     def get_dataframe(self, key: str) -> pd.DataFrame:
         if not key:
             return pd.DataFrame()
-        client = Redis(connection_pool=self._pool, decode_responses=False)
-        return pickle.loads(client.get(key))
+        redis_client = Redis(connection_pool=self._pool, decode_responses=False)
+        return pickle.loads(redis_client.get(key))
 
     def is_dataframe_saved(self, key: str) -> bool:
-        client = self._get_db_connection()
-        return False if not key else client.exists(key) == 1
+        redis_client = self._get_db_connection()
+        return False if not key else redis_client.exists(key) == 1
 
     def _get_db_connection(self) -> Redis:
         return Redis(decode_responses=True, charset='utf-8', connection_pool=self._pool)

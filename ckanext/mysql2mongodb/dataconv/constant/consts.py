@@ -81,7 +81,7 @@ MYSQL_MONGO_MAP: Dict[str, str] = {
 # endregion
 
 # region Validator error description
-ROWS_NOT_MATCH = 'Total row from mysql and mongodb don\'t match'
+ROWS_NOT_MATCH = 'Total rows from mysql and mongodb don\'t match'
 INCORRECT_VALUE: Callable[[int], str] = lambda incorrect_value_num: f'There are {incorrect_value_num} incorrect values'\
     if incorrect_value_num > 1 else f'There is {incorrect_value_num} incorrect value'
 # endregion
