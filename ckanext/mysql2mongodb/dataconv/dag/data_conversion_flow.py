@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 
-from airflow import DAG
+from airflow import DAG, AirflowException
 from airflow.operators.python import PythonOperator
 
 from ckanext.mysql2mongodb.dataconv.task.mysql_mongo import prepare as mysql2mongo_prepare
@@ -62,9 +62,13 @@ def _task_upload_result(**kwargs):
                             input_file_info['package_id'])
 
 
+def _task_end_of_the_road(**kwargs):
+    raise AirflowException('End Of The Road')
+
+
 dag = DAG('data_conversion_flow',
           description='Data Conversion Flow',
-          schedule_interval='0 12 * * *',
+          schedule_interval=None,
           start_date=datetime(2022, 3, 4), catchup=False, max_active_runs=1)
 
 task1 = PythonOperator(task_id='prepare_task',
@@ -102,10 +106,16 @@ task7 = PythonOperator(task_id='upload_result_task',
                        op_kwargs={},
                        provide_context=True,
                        dag=dag)
+task8 = PythonOperator(task_id='stop_dag',
+                       python_callable=_task_end_of_the_road,
+                       op_kwargs={},
+                       provide_context=True,
+                       dag=dag)
 
 task2.set_upstream(task1)
 task3.set_upstream(task2)
 task4.set_upstream(task3)
-task5.set_upstream(task4)
-task6.set_upstream(task5)
-task7.set_upstream(task6)
+task5.set_upstream(task3)
+task6.set_upstream(task4)
+task7.set_upstream([task5, task6])
+task8.set_upstream(task7)
