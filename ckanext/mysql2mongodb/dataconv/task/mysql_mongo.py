@@ -92,6 +92,7 @@ def validate_data(resource_id: str, sql_file_name: str, package_id: str):
         cache_handler = CacheHandler()
         validator_log_handler = ValidatorLogHandler()
         db_name = sql_file_name.split('.')[0]
+        cache_prefix = f'{resource_id}_{package_id}_'
 
         table_primary_key_map = mongo_handler.get_table_primary_keys_map(db_name)
         table_name_list = mongo_handler.get_table_name_list(db_name)
@@ -108,8 +109,8 @@ def validate_data(resource_id: str, sql_file_name: str, package_id: str):
                     )
                     sub_mongo_df = mongo_handler.to_pandas_dataframe(db_name, table_name, table_primary_key_map[table_name], mongodb_query)
                     false_indexes = np.append(false_indexes, validator.find_false_indexes(sub_mysql_df, sub_mongo_df))
-                    cache_handler.append_list(REDIS_VALIDATOR_FALSE_INDEXES, false_indexes)
-                if false_indexes_len := cache_handler.get_list_length(REDIS_VALIDATOR_FALSE_INDEXES) != 0:
+                    cache_handler.append_list(cache_prefix + REDIS_VALIDATOR_FALSE_INDEXES, false_indexes)
+                if false_indexes_len := cache_handler.get_list_length(cache_prefix + REDIS_VALIDATOR_FALSE_INDEXES) != 0:
                     raise ValidationFlowIncompleteError(INCORRECT_VALUE(false_indexes_len))
                 logger.info(f'Validate database {db_name}, table {table_name} successfully')
             except ValidationFlowIncompleteError as ex:
@@ -122,7 +123,7 @@ def validate_data(resource_id: str, sql_file_name: str, package_id: str):
                     description=str(ex)
                 )
                 continue
-        cache_handler.clear_cache()
+        cache_handler.clear_cache(prefix=cache_prefix)
         logger.info('Task validate data success')
     except Exception as ex:
         logger.error(f'error code: {TASK_VALIDATE_DATA_ERROR}')

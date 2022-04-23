@@ -42,10 +42,11 @@ class CacheHandler(metaclass=SingletonMetaCls):
         redis_client = self._get_db_connection()
         redis_client.delete(key)
 
-    def clear_cache(self):
+    def clear_cache(self, prefix=''):
         redis_client = self._get_db_connection()
         for key in redis_client.keys():
-            redis_client.delete(key)
+            if key.startswith(prefix):
+                redis_client.delete(key)
 
     def store_dataframe(self, key: str, value: pd.DataFrame):
         if not key or value.empty:
