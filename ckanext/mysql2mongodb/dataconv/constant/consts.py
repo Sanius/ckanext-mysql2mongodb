@@ -2,6 +2,8 @@
 from typing import Tuple, Dict, Callable
 
 # region File extension
+from ckanext.mysql2mongodb.settings import SAMPLE_PERCENTAGE
+
 SQL_FILE_EXTENSION = 'sql'
 JSON_FILE_EXTENSION = 'json'
 GZIP_FILE_EXTENSION = 'gz'
@@ -28,7 +30,7 @@ MONGO_DUMP = 'mongodump'
 # endregion
 
 # region MISC
-DATABASE_CHUNK_SIZE = 500
+DATABASE_CHUNK_SIZE = 1000
 TIME_FORMAT = '%H:%M:%S'
 MONGO_SCHEMA_COLLECTION = '_schema'
 # endregion
@@ -47,12 +49,12 @@ MONGO_OBJECT_DATATYPE = 'object'
 MONGO_SINGLE_GEOMETRY_DATATYPE = 'single-geometry'
 MONGO_MULTIPLE_GEOMETRY_DATATYPE = 'multiple-geometry'
 
-MYSQL_INTEGER_DATATYPE: Tuple = ('TINYINT', 'SMALLINT', 'MEDIUMINT', 'INT', 'INTEGER', 'BIGINT')
+MYSQL_INTEGER_DATATYPE: Tuple = ('BIT', 'TINYINT', 'SMALLINT', 'MEDIUMINT', 'INT', 'INTEGER', 'BIGINT')
 MYSQL_DECIMAL_DATATYPE: Tuple = ('DECIMAL', 'DEC', 'FIXED')
 MYSQL_DOUBLE_DATATYPE: Tuple = ('FLOAT', 'DOUBLE', 'REAL')
 MYSQL_BOOLEAN_DATATYPE: Tuple = ('BOOL', 'BOOLEAN')
-MYSQL_TIMESTAMP_DATATYPE: Tuple = ('DATETIME', 'TIMESTAMP', 'TIME')
-MYSQL_BINARY_DATATYPE: Tuple = ('BIT', 'BINARY', 'VARBINARY')
+MYSQL_TIMESTAMP_DATATYPE: Tuple = ('DATETIME', 'TIMESTAMP')
+MYSQL_BINARY_DATATYPE: Tuple = ('BINARY', 'VARBINARY')
 MYSQL_BLOB_DATATYPE: Tuple = ('TINYBLOB', 'BLOB', 'MEDIUMBLOB', 'LONGBLOB')
 MYSQL_STRING_DATATYPE: Tuple = ('CHARACTER', 'CHARSET', 'ASCII', 'UNICODE', 'CHAR', 'VARCHAR', 'TINYTEXT', 'TEXT',
                                 'MEDIUMTEXT', 'LONGTEXT')
@@ -82,8 +84,10 @@ MYSQL_MONGO_MAP: Dict[str, str] = {
 
 # region Validator error description
 ROWS_NOT_MATCH = 'Total rows from mysql and mongodb don\'t match'
-INCORRECT_VALUE: Callable[[int], str] = lambda incorrect_value_num: f'There are {incorrect_value_num} incorrect values'\
-    if incorrect_value_num > 1 else f'There is {incorrect_value_num} incorrect value'
+INCORRECT_VALUE: Callable[[int], str] = lambda incorrect_value_num: \
+    f'There are {incorrect_value_num} incorrect values with sample percentage {SAMPLE_PERCENTAGE}' \
+    if incorrect_value_num > 1 \
+    else f'There is {incorrect_value_num} incorrect value with sample percentage {SAMPLE_PERCENTAGE}'
 # endregion
 
 # region Validator type
