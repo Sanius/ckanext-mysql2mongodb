@@ -79,7 +79,7 @@ class MongoHandler(AbstractDatabaseHandler):
     def drop_db_if_exists(self, db_name: str):
         self._drop_db_if_exists(db_name)
 
-    def get_table_datatype_map(self, db_name: str) -> Dict:
+    def get_table_datatype_map(self, db_name: str, cache_prefix: str = None) -> Dict:
         """
         Get dict of tables, columns name and columns data type.
         Dict(
@@ -91,17 +91,17 @@ class MongoHandler(AbstractDatabaseHandler):
         )
         """
         try:
-            return self._get_table_schema_dataframe(db_name).groupby(by='table_name', sort=False) \
+            return self._get_table_schema_dataframe(db_name, cache_prefix).groupby(by='table_name', sort=False) \
                 .apply(lambda df: df[['column_name', 'column_datatype']].to_dict(orient='records')) \
                 .to_dict()
         except Exception as ex:
             logger.error(f'error code: {MONGO_EXTRACT_COLUMN_DATATYPE_ERROR}')
             raise ex
 
-    def get_table_name_list(self, db_name: str) -> List:
-        return list(self._get_table_schema_dataframe(db_name)['table_name'].unique())
+    def get_table_name_list(self, db_name: str, cache_prefix: str = None) -> List:
+        return list(self._get_table_schema_dataframe(db_name, cache_prefix)['table_name'].unique())
 
-    def get_table_primary_keys_map(self, db_name: str) -> Dict:
+    def get_table_primary_keys_map(self, db_name: str, cache_prefix: str = None) -> Dict:
         """
         Get dict of table name and primary key columns names.
         Dict(
@@ -110,7 +110,7 @@ class MongoHandler(AbstractDatabaseHandler):
         )
         """
         try:
-            table_schema_df = self._get_table_schema_dataframe(db_name)
+            table_schema_df = self._get_table_schema_dataframe(db_name, cache_prefix)
             filter_clause = table_schema_df['is_primary_key'] == True
             return table_schema_df[filter_clause].groupby(by='table_name', sort=False) \
                 .apply(lambda df: list(df['column_name'].unique())) \
@@ -145,7 +145,7 @@ class MongoHandler(AbstractDatabaseHandler):
     # endregion
 
     # region Schema crawler methods
-    def _get_table_schema_dataframe(self, db_name: str) -> pd.DataFrame:
+    def _get_table_schema_dataframe(self, db_name: str, cache_prefix: str = None) -> pd.DataFrame:
         """
         _____________________________________________________________________________
         | column_uuid | table_name | column_name | column_datatype | is_primary_key |
@@ -207,8 +207,8 @@ class MongoHandler(AbstractDatabaseHandler):
             return result
 
         cache_handler = CacheHandler()
-        if cache_handler.is_dataframe_saved(REDIS_SCHEMA_DATAFRAME):
-            return cache_handler.get_dataframe(REDIS_SCHEMA_DATAFRAME)
+        if cache_prefix and cache_handler.is_dataframe_saved(cache_prefix + REDIS_SCHEMA_DATAFRAME):
+            return cache_handler.get_dataframe(cache_prefix + REDIS_SCHEMA_DATAFRAME)
         schema_list = []
         column_tablename = get_column_tablename()
         column_datatype = get_column_datatype()
@@ -223,7 +223,8 @@ class MongoHandler(AbstractDatabaseHandler):
                 'is_primary_key': column_uuid in tables_primary_keys
             })
         df = pd.DataFrame(schema_list).set_index(['column_uuid'])
-        cache_handler.store_dataframe(REDIS_SCHEMA_DATAFRAME, df)
+        if cache_prefix:
+            cache_handler.store_dataframe(cache_prefix + REDIS_SCHEMA_DATAFRAME, df)
         return df
 
     def _get_schema_collection_real_tables(self, db_name: str, *extended_keys) -> List:

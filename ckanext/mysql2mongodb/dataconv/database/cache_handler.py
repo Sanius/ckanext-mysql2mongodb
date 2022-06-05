@@ -20,7 +20,7 @@ class CacheHandler(metaclass=SingletonMetaCls):
         """
         Push and pop from left to right
         """
-        if not key or not value:
+        if not key or value is None:
             return
         redis_client = self._get_db_connection()
         for i in value:
@@ -45,7 +45,7 @@ class CacheHandler(metaclass=SingletonMetaCls):
     def clear_cache(self, prefix=''):
         redis_client = self._get_db_connection()
         for key in redis_client.keys():
-            if key.startswith(prefix):
+            if key is not None and key.decode().startswith(prefix):
                 redis_client.delete(key)
 
     def store_dataframe(self, key: str, value: pd.DataFrame):
